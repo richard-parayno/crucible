@@ -42,3 +42,7 @@ node_modules
 *.local
 
 .devenv/
+
+# Ignore key files for decrypting credentials and more.
+/config/credentials/*.key
+
