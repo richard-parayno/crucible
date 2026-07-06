@@ -16,6 +16,7 @@
     pkgs.git
     pkgs.watchman
     pkgs.overmind
+    pkgs.prettier
 
     # Native gem dependencies
     pkgs.pkg-config
