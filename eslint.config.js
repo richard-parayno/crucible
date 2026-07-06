@@ -45,7 +45,7 @@ export default ts.config(
   {
     ...importPlugin.flatConfigs.recommended,
     ...importPlugin.flatConfigs.typescript,
-    settings: { "import/resolver": { typescript: {} } },
+    settings: { "import/resolver": { typescript: { project: "./tsconfig.json" } } },
     rules: {
       "import/order": [
         "error",
@@ -67,10 +67,18 @@ export default ts.config(
         "error",
         "always",
         {
-          js: "never",
-          jsx: "never",
-          ts: "never",
-          tsx: "never",
+          pattern: {
+            js: "never",
+            jsx: "never",
+            ts: "never",
+            tsx: "never",
+          },
+          pathGroupOverrides: [
+            {
+              pattern: "@/**",
+              action: "ignore",
+            },
+          ],
         },
       ],
       "@typescript-eslint/consistent-type-imports": "error",
