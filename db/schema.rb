@@ -10,25 +10,94 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_01_153828) do
-  create_table "sessions", force: :cascade do |t|
-    t.integer "user_id", null: false
-    t.string "user_agent"
-    t.string "ip_address"
+ActiveRecord::Schema[8.1].define(version: 2026_07_06_065649) do
+  create_table "runtime_artifacts", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.string "kind"
+    t.json "metadata"
+    t.string "path"
+    t.integer "runtime_instance_id", null: false
     t.datetime "updated_at", null: false
+    t.index ["runtime_instance_id"], name: "index_runtime_artifacts_on_runtime_instance_id"
+  end
+
+  create_table "runtime_definitions", force: :cascade do |t|
+    t.boolean "active"
+    t.json "config_schema"
+    t.string "container_image"
+    t.datetime "created_at", null: false
+    t.text "default_command"
+    t.json "default_env"
+    t.text "description"
+    t.string "kind"
+    t.string "name"
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "runtime_events", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "level"
+    t.text "message"
+    t.json "metadata"
+    t.datetime "occurred_at"
+    t.integer "runtime_instance_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["runtime_instance_id"], name: "index_runtime_events_on_runtime_instance_id"
+  end
+
+  create_table "runtime_instances", force: :cascade do |t|
+    t.json "config"
+    t.string "container_name"
+    t.string "container_runtime"
+    t.datetime "created_at", null: false
+    t.json "env"
+    t.string "external_id"
+    t.datetime "last_heartbeat_at"
+    t.string "name"
+    t.string "placement_kind"
+    t.integer "runtime_definition_id", null: false
+    t.datetime "started_at"
+    t.string "status"
+    t.text "status_message"
+    t.datetime "stopped_at"
+    t.datetime "updated_at", null: false
+    t.integer "workspace_id", null: false
+    t.index ["runtime_definition_id"], name: "index_runtime_instances_on_runtime_definition_id"
+    t.index ["workspace_id"], name: "index_runtime_instances_on_workspace_id"
+  end
+
+  create_table "sessions", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "ip_address"
+    t.datetime "updated_at", null: false
+    t.string "user_agent"
+    t.integer "user_id", null: false
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
-    t.string "name", null: false
-    t.string "email", null: false
-    t.string "password_digest", null: false
-    t.boolean "verified", default: false, null: false
     t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.string "name", null: false
+    t.string "password_digest", null: false
     t.datetime "updated_at", null: false
+    t.boolean "verified", default: false, null: false
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 
+  create_table "workspaces", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.string "name"
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["user_id"], name: "index_workspaces_on_user_id"
+  end
+
+  add_foreign_key "runtime_artifacts", "runtime_instances"
+  add_foreign_key "runtime_events", "runtime_instances"
+  add_foreign_key "runtime_instances", "runtime_definitions"
+  add_foreign_key "runtime_instances", "workspaces"
   add_foreign_key "sessions", "users"
+  add_foreign_key "workspaces", "users"
 end

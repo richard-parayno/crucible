@@ -16,6 +16,17 @@ Rails.application.routes.draw do
 
   get :dashboard, to: "dashboard#index"
 
+  resources :workspaces, only: %i[index show create] do
+    resources :runtime_instances, only: %i[create] do
+      member do
+        post :start
+        post :stop
+        post :restart
+        post :check_health
+      end
+    end
+  end
+
   namespace :settings do
     resource :profile, only: [:show, :update]
     resource :password, only: [:show, :update]
@@ -29,6 +40,7 @@ Rails.application.routes.draw do
   # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
   # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
+  mount ActionCable.server => "/cable"
 
   # Render dynamic PWA files from app/views/pwa/* (remember to link manifest in application.html.erb)
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest

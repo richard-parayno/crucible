@@ -6,6 +6,9 @@
 # and recreated between test runs. Don't rely on the data there!
 
 Rails.application.configure do
+  config.hosts.clear
+  config.host_authorization = {exclude: ->(_request) { true }}
+
   # Settings specified here will take precedence over those in config/application.rb.
 
   # While tests run files are not watched, reloading is not necessary.

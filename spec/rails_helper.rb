@@ -1,13 +1,15 @@
 # frozen_string_literal: true
 
 require "spec_helper"
-ENV["RAILS_ENV"] ||= "test"
+ENV["RAILS_ENV"] = "test"
 require_relative "../config/environment"
 abort("The Rails environment is running in production mode!") if Rails.env.production?
 
 require "rspec/rails"
+require "inertia_rails/rspec"
 require "capybara/rspec"
 require "selenium-webdriver"
+require "active_job/test_helper"
 
 # Precompile Vite assets once before running the test suite
 ViteRuby.commands.build
@@ -31,5 +33,15 @@ RSpec.configure do |config|
 
   config.include FactoryBot::Syntax::Methods
   config.include ActiveSupport::Testing::TimeHelpers
+  config.include ActiveJob::TestHelper
   config.include AuthenticationHelpers, type: ->(type, _metadata) { [:system, :request, :controller].include?(type) }
+
+  config.before do
+    ActiveJob::Base.queue_adapter = :test
+  end
+
+  config.after do
+    clear_enqueued_jobs
+    clear_performed_jobs
+  end
 end
