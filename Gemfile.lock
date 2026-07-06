@@ -135,7 +135,7 @@ GEM
       activesupport (>= 6.1)
     i18n (1.15.2)
       concurrent-ruby (~> 1.0)
-    inertia_rails (3.17.0)
+    inertia_rails (3.21.2)
       railties (>= 6)
     io-console (0.8.2)
     irb (1.18.0)
@@ -437,7 +437,7 @@ DEPENDENCIES
   capybara-lockstep
   debug
   factory_bot_rails
-  inertia_rails (~> 3.10)
+  inertia_rails (~> 3.21)
   jbuilder
   js-routes
   kamal
