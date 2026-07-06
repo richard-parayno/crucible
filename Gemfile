@@ -67,6 +67,8 @@ group :development, :test do
 
   # Fixtures replacement with a straightforward definition syntax
   gem "factory_bot_rails"
+
+  gem "ruby-lsp", ">= 0.26.9"
 end
 
 group :development do
