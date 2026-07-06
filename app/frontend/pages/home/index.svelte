@@ -2,30 +2,7 @@
   import { page } from "@inertiajs/svelte"
   import { inertia } from "@inertiajs/svelte"
 
-  import AppLogoIcon from "@/components/app-logo-icon.svelte"
-  import ResourceItem from "@/components/resource-item.svelte"
   import { dashboardPath, signInPath, signUpPath } from "@/routes"
-
-  const links = [
-    [
-      {
-        text: "Inertia Rails Docs",
-        href: "https://inertia-rails.dev",
-      },
-      {
-        text: "shadcn-svelte Components",
-        href: "https://www.shadcn-svelte.com",
-      },
-      {
-        text: "Svelte Docs",
-        href: "https://svelte.dev",
-      },
-      {
-        text: "Rails Guides",
-        href: "https://guides.rubyonrails.org",
-      },
-    ],
-  ]
 </script>
 
 <svelte:head>
@@ -69,46 +46,13 @@
   <div
     class="flex w-full items-center justify-center opacity-100 transition-opacity duration-750 lg:grow starting:opacity-0"
   >
-    <main
-      class="flex w-full max-w-[335px] flex-col-reverse overflow-hidden rounded-lg lg:max-w-4xl lg:flex-row"
-    >
-      <div
-        class="flex-1 rounded-br-lg rounded-bl-lg bg-white p-6 pb-12 text-[13px] leading-[20px] shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] lg:rounded-tl-lg lg:rounded-br-none lg:p-20 dark:bg-[#161615] dark:text-[#EDEDEC] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]"
-      >
-        <h1 class="mb-1 font-medium">
-          {import.meta.env.VITE_APP_NAME ?? "Svelte Starter Kit"}
-        </h1>
-        <p class="mb-2 text-[#706f6c] dark:text-[#A1A09A]">
-          Rails + Inertia.js + Svelte + shadcn-svelte
-          <br />
-          Here are some resources to begin:
-        </p>
-
-        <ul class="mb-4 flex flex-col lg:mb-6">
-          {#each links[0] as link, index (index)}
-            <li class="relative flex items-center gap-4 py-2">
-              <ResourceItem text={link.text} href={link.href} />
-            </li>
-          {/each}
-        </ul>
-        <ul class="flex gap-3 text-sm leading-normal">
-          <li>
-            <a
-              href="https://inertia-rails.dev"
-              target="_blank"
-              class="inline-block rounded-sm border border-black bg-[#1b1b18] px-5 py-1.5 text-sm leading-normal text-white hover:border-black hover:bg-black dark:border-[#eeeeec] dark:bg-[#eeeeec] dark:text-[#1C1C1A] dark:hover:border-white dark:hover:bg-white"
-            >
-              Learn more
-            </a>
-          </li>
-        </ul>
-      </div>
-
-      <div
-        class="relative -mb-px aspect-[335/376] w-full shrink-0 overflow-hidden rounded-t-lg bg-[#D30001] p-10 text-white lg:mb-0 lg:-ml-px lg:aspect-auto lg:w-[438px] lg:rounded-t-none lg:rounded-r-lg"
-      >
-        <AppLogoIcon class="h-full w-full" />
-      </div>
+    <main class="w-full max-w-[335px] py-24 text-center lg:max-w-4xl">
+      <h1 class="text-4xl font-medium tracking-tight dark:text-[#EDEDEC]">
+        crucible
+      </h1>
+      <p class="mt-4 text-base text-[#706f6c] dark:text-[#A1A09A]">
+        a simple multiplayer agent workspace
+      </p>
     </main>
   </div>
 </div>
