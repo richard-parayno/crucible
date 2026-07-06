@@ -8,12 +8,14 @@
     enable = true;
     version = "4.0.5";
     lsp.enable = false;
+    bundler.enable = false;
   };
 
   packages = [
     pkgs.nodejs
     pkgs.git
     pkgs.watchman
+    pkgs.overmind
 
     # Native gem dependencies
     pkgs.pkg-config
