@@ -34,12 +34,6 @@ createServer(
           forceIndicesArrayFormatInFormData: false,
           withAllErrors: true,
         },
-        future: {
-          useScriptElementForInitialPage: true,
-          useDataInertiaHeadAttribute: true,
-          useDialogForErrorModal: true,
-          preserveEqualProps: true,
-        },
       },
 
       setup: ({ App, props }) => render(App, { props }),
