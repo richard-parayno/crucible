@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { cn, type WithElementRef } from "@/utils.js"
-  import type { HTMLLiAttributes } from "svelte/elements"
   import ChevronRightIcon from "@lucide/svelte/icons/chevron-right"
+  import type { HTMLLiAttributes } from "svelte/elements"
+
+  import { type WithElementRef, cn } from "@/utils.js"
 
   let {
     ref = $bindable(null),

@@ -1,7 +1,8 @@
 <script lang="ts">
+  import EllipsisIcon from "@lucide/svelte/icons/ellipsis"
   import type { HTMLAttributes } from "svelte/elements"
-  import { cn, type WithElementRef, type WithoutChildren } from "@/utils.js"
-  import MoreHorizontalIcon from "@lucide/svelte/icons/more-horizontal"
+
+  import { type WithElementRef, type WithoutChildren, cn } from "@/utils.js"
 
   let {
     ref = $bindable(null),
@@ -21,6 +22,6 @@
   )}
   {...restProps}
 >
-  <MoreHorizontalIcon />
+  <EllipsisIcon />
   <span class="sr-only">More</span>
 </span>
