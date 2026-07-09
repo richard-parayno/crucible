@@ -20,7 +20,8 @@ class RuntimeInstanceSerializer
         name: runtime_definition.name,
         description: runtime_definition.description,
         container_image: runtime_definition.container_image,
-        default_command: runtime_definition.default_command
+        default_command: runtime_definition.default_command,
+        config_schema: runtime_definition.config_schema
       }
     end
 

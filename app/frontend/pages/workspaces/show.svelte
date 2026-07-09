@@ -28,6 +28,7 @@
     workspaceEnvironmentVariablePath,
     workspaceEnvironmentVariablesPath,
     workspacePath,
+    workspaceRuntimeInstanceAgentRunsPath,
     workspaceRuntimeInstanceEnvironmentVariablePath,
     workspaceRuntimeInstanceEnvironmentVariablesPath,
     workspaceRuntimeInstancesPath,
@@ -55,7 +56,20 @@
     started_at?: string
     stopped_at?: string
     environment_variables: EnvironmentVariable[]
+    recent_agent_runs: AgentRun[]
     recent_events: RuntimeEvent[]
+  }
+
+  interface AgentRun {
+    id: number
+    command: string
+    status: string
+    exit_code?: number
+    output?: string
+    status_message?: string
+    created_at: string
+    started_at?: string
+    finished_at?: string
   }
 
   interface EnvironmentVariable {
@@ -76,6 +90,18 @@
     description?: string
     container_image: string
     default_command: string
+    config_schema?: {
+      default_template_mode?: string
+      templates?: RuntimeTemplate[]
+    }
+  }
+
+  interface RuntimeTemplate {
+    mode: string
+    name: string
+    description?: string
+    container_image?: string
+    default_command?: string
   }
 
   interface WorkspaceSummary {
@@ -111,6 +137,7 @@
   let selectedRuntimeDefinitionId = $state(
     runtimeDefinitions[0]?.id?.toString() ?? "",
   )
+  let selectedTemplateMode = $state(defaultTemplateMode(runtimeDefinitions[0]))
   let selectedInstanceId = $state<number | null>(
     selectedRuntimeInstanceId ?? runtimeInstances[0]?.id ?? null,
   )
@@ -133,6 +160,16 @@
     ) ?? runtimeDefinitions[0],
   )
 
+  const selectedRuntimeDefinitionTemplates = $derived(
+    selectedRuntimeDefinition?.config_schema?.templates ?? [],
+  )
+
+  const selectedRuntimeTemplate = $derived(
+    selectedRuntimeDefinitionTemplates.find(
+      (template) => template.mode === selectedTemplateMode,
+    ) ?? selectedRuntimeDefinitionTemplates[0],
+  )
+
   const selectedInstance = $derived(
     runtimeInstances.find(
       (runtimeInstance) => runtimeInstance.id === selectedInstanceId,
@@ -146,8 +183,18 @@
   const configTemplate = $derived(
     JSON.stringify(
       {
-        container_image: selectedRuntimeDefinition?.container_image ?? "",
-        command: selectedRuntimeDefinition?.default_command ?? "",
+        template_mode: selectedTemplateMode,
+        container_image:
+          selectedRuntimeTemplate?.container_image ??
+          selectedRuntimeDefinition?.container_image ??
+          "",
+        command:
+          selectedRuntimeTemplate?.default_command ??
+          selectedRuntimeDefinition?.default_command ??
+          "",
+        ...(selectedTemplateMode === "host_binary"
+          ? { host_binary_path: "" }
+          : {}),
       },
       null,
       2,
@@ -187,6 +234,24 @@
       return "bg-blue-50 text-blue-700 border-blue-200"
     }
     return "bg-muted text-muted-foreground border-border"
+  }
+
+  function defaultTemplateMode(runtimeDefinition?: RuntimeDefinition) {
+    return (
+      runtimeDefinition?.config_schema?.default_template_mode ??
+      runtimeDefinition?.config_schema?.templates?.[0]?.mode ??
+      "managed_image"
+    )
+  }
+
+  function changeRuntimeDefinition(event: Event) {
+    const runtimeDefinitionId = (event.currentTarget as HTMLSelectElement).value
+    selectedRuntimeDefinitionId = runtimeDefinitionId
+
+    const runtimeDefinition = runtimeDefinitions.find(
+      (candidate) => candidate.id.toString() === runtimeDefinitionId,
+    )
+    selectedTemplateMode = defaultTemplateMode(runtimeDefinition)
   }
 
   function capabilityStatus(path: string[]) {
@@ -313,6 +378,7 @@
                   id="runtime_definition_id"
                   name="runtime_definition_id"
                   bind:value={selectedRuntimeDefinitionId}
+                  onchange={changeRuntimeDefinition}
                   class="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   {#each runtimeDefinitions as runtimeDefinition (runtimeDefinition.id)}
@@ -332,6 +398,26 @@
                 />
                 <InputError messages={errors.name} />
               </div>
+
+              {#if selectedRuntimeDefinitionTemplates.length > 0}
+                <div class="grid gap-2">
+                  <Label for="template_mode">Install mode</Label>
+                  <select
+                    id="template_mode"
+                    bind:value={selectedTemplateMode}
+                    class="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  >
+                    {#each selectedRuntimeDefinitionTemplates as template (template.mode)}
+                      <option value={template.mode}>{template.name}</option>
+                    {/each}
+                  </select>
+                  {#if selectedRuntimeTemplate?.description}
+                    <p class="text-muted-foreground text-xs">
+                      {selectedRuntimeTemplate.description}
+                    </p>
+                  {/if}
+                </div>
+              {/if}
 
               <div class="grid gap-2">
                 <Label for="config">Config JSON</Label>
@@ -502,6 +588,80 @@
                 </div>
               </div>
 
+              <section class="border-border mt-5 rounded-lg border">
+                <div class="border-border border-b p-3">
+                  <HeadingSmall
+                    title="Agent run"
+                    description="Execute a command inside the selected Compose service."
+                  />
+                </div>
+                <div class="space-y-3 p-3">
+                  <Form
+                    method="post"
+                    action={workspaceRuntimeInstanceAgentRunsPath(
+                      workspace.id,
+                      selectedInstance.id,
+                    )}
+                    class="grid gap-3"
+                  >
+                    {#snippet children({
+                      errors,
+                      processing,
+                    }: FormComponentSlotProps)}
+                      <div class="grid gap-2">
+                        <Label for="agent-command">Command</Label>
+                        <Input
+                          id="agent-command"
+                          name="command"
+                          placeholder="echo ready"
+                          autocomplete="off"
+                          required
+                        />
+                        <InputError messages={errors.command} />
+                      </div>
+                      <div class="grid gap-2">
+                        <Label for="agent-prompt">Prompt</Label>
+                        <textarea
+                          id="agent-prompt"
+                          name="prompt"
+                          rows="3"
+                          class="border-input bg-background ring-offset-background focus-visible:ring-ring rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                          placeholder="Optional context for this run"
+                        ></textarea>
+                      </div>
+                      <Button type="submit" disabled={processing}>
+                        <Play class="size-4" />
+                        Run
+                      </Button>
+                    {/snippet}
+                  </Form>
+
+                  {#if selectedInstance.recent_agent_runs.length > 0}
+                    <div class="divide-border divide-y rounded-md border">
+                      {#each selectedInstance.recent_agent_runs as run (run.id)}
+                        <div class="grid gap-1 p-2">
+                          <div class="flex items-center justify-between gap-3">
+                            <p class="truncate font-mono text-xs">
+                              {run.command}
+                            </p>
+                            <Badge variant="outline">{run.status}</Badge>
+                          </div>
+                          {#if run.status_message}
+                            <p class="text-muted-foreground text-xs">
+                              {run.status_message}
+                            </p>
+                          {/if}
+                          {#if run.output}
+                            <pre
+                              class="max-h-32 overflow-auto rounded bg-black p-2 text-xs whitespace-pre-wrap text-white">{run.output}</pre>
+                          {/if}
+                        </div>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+              </section>
+
               <div class="mt-5 grid gap-4 2xl:grid-cols-2">
                 <section class="border-border rounded-lg border">
                   <div class="border-border border-b p-3">
@@ -517,7 +677,10 @@
                       action={workspaceEnvironmentVariablesPath(workspace.id)}
                       class="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]"
                     >
-                      {#snippet children({ errors, processing }: FormComponentSlotProps)}
+                      {#snippet children({
+                        errors,
+                        processing,
+                      }: FormComponentSlotProps)}
                         <input
                           type="hidden"
                           name="return_runtime_instance_id"
@@ -540,11 +703,7 @@
                         <label
                           class="text-muted-foreground flex h-9 items-center gap-2 text-sm"
                         >
-                          <input
-                            type="hidden"
-                            name="sensitive"
-                            value="0"
-                          />
+                          <input type="hidden" name="sensitive" value="0" />
                           <input
                             type="checkbox"
                             name="sensitive"
@@ -578,7 +737,9 @@
                               )}
                               class="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]"
                             >
-                              {#snippet children({ processing }: FormComponentSlotProps)}
+                              {#snippet children({
+                                processing,
+                              }: FormComponentSlotProps)}
                                 <input
                                   type="hidden"
                                   name="return_runtime_instance_id"
@@ -641,7 +802,9 @@
                                   variable.id,
                                 )}
                               >
-                                {#snippet children({ processing }: FormComponentSlotProps)}
+                                {#snippet children({
+                                  processing,
+                                }: FormComponentSlotProps)}
                                   <input
                                     type="hidden"
                                     name="return_runtime_instance_id"
@@ -671,7 +834,9 @@
                                   variable.id,
                                 )}
                               >
-                                {#snippet children({ processing }: FormComponentSlotProps)}
+                                {#snippet children({
+                                  processing,
+                                }: FormComponentSlotProps)}
                                   <input
                                     type="hidden"
                                     name="return_runtime_instance_id"
@@ -713,7 +878,10 @@
                       )}
                       class="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]"
                     >
-                      {#snippet children({ errors, processing }: FormComponentSlotProps)}
+                      {#snippet children({
+                        errors,
+                        processing,
+                      }: FormComponentSlotProps)}
                         <Input
                           name="key"
                           placeholder="KEY"
@@ -731,11 +899,7 @@
                         <label
                           class="text-muted-foreground flex h-9 items-center gap-2 text-sm"
                         >
-                          <input
-                            type="hidden"
-                            name="sensitive"
-                            value="0"
-                          />
+                          <input type="hidden" name="sensitive" value="0" />
                           <input
                             type="checkbox"
                             name="sensitive"
@@ -770,7 +934,9 @@
                               )}
                               class="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]"
                             >
-                              {#snippet children({ processing }: FormComponentSlotProps)}
+                              {#snippet children({
+                                processing,
+                              }: FormComponentSlotProps)}
                                 <Input
                                   name="key"
                                   value={variable.key}
@@ -829,7 +995,9 @@
                                   variable.id,
                                 )}
                               >
-                                {#snippet children({ processing }: FormComponentSlotProps)}
+                                {#snippet children({
+                                  processing,
+                                }: FormComponentSlotProps)}
                                   <input
                                     type="hidden"
                                     name="enabled"
@@ -855,7 +1023,9 @@
                                   variable.id,
                                 )}
                               >
-                                {#snippet children({ processing }: FormComponentSlotProps)}
+                                {#snippet children({
+                                  processing,
+                                }: FormComponentSlotProps)}
                                   <Button
                                     type="submit"
                                     size="sm"
