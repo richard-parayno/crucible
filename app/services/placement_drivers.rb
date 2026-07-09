@@ -7,6 +7,8 @@ module PlacementDrivers
     case kind
     when "local_container"
       LocalContainer.new
+    when "docker_compose"
+      DockerCompose.new
     else
       raise UnknownDriver, "Unknown placement driver: #{kind}"
     end

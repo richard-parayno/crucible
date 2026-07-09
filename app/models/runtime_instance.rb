@@ -2,7 +2,7 @@
 
 class RuntimeInstance < ApplicationRecord
   STATUSES = %w[pending starting running unhealthy stopping stopped failed].freeze
-  PLACEMENT_KINDS = %w[local_container].freeze
+  PLACEMENT_KINDS = %w[local_container docker_compose].freeze
   CONTAINER_RUNTIMES = %w[docker podman].freeze
 
   belongs_to :workspace
