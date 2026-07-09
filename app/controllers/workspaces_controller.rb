@@ -13,8 +13,7 @@ class WorkspacesController < InertiaController
       workspace: RuntimeInstanceSerializer.workspace(current_user_workspaces.find(params[:id])),
       workspaces: current_user_workspaces.order(created_at: :asc).map { |workspace| workspace.slice(:id, :name) },
       runtime_definitions: RuntimeDefinition.active.map { |runtime_definition| RuntimeInstanceSerializer.runtime_definition(runtime_definition) },
-      container_engines: ContainerEngines.available,
-      default_container_engine: ContainerEngines.preferred
+      host_capabilities: HostCapabilities.new.call
     }
   end
 

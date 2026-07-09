@@ -56,8 +56,8 @@ class RuntimeInstance < ApplicationRecord
 
   def apply_defaults
     self.status ||= "pending"
-    self.placement_kind ||= "local_container"
-    self.container_runtime ||= ContainerEngines.preferred
+    self.placement_kind ||= "docker_compose"
+    self.container_runtime ||= "docker"
     self.env ||= {}
     self.config ||= {}
   end

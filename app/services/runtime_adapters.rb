@@ -7,6 +7,8 @@ module RuntimeAdapters
 
   def self.for(kind)
     case kind
+    when "codex"
+      Codex.new
     when "openclaw"
       OpenClaw.new
     when "hermes"
@@ -24,7 +26,7 @@ module RuntimeAdapters
       AdapterSpec.new(
         image: runtime_instance.config["container_image"].presence || runtime_definition.container_image,
         command: runtime_instance.config["command"].presence || runtime_definition.default_command,
-        env: runtime_definition.default_env.merge(runtime_instance.env),
+        env: EnvironmentVariableResolver.call(runtime_instance),
         labels: {
           "crucible.runtime_instance_id" => runtime_instance.id.to_s,
           "crucible.workspace_id" => runtime_instance.workspace_id.to_s,
@@ -42,6 +44,9 @@ module RuntimeAdapters
   end
 
   class OpenClaw < Base
+  end
+
+  class Codex < Base
   end
 
   class Hermes < Base

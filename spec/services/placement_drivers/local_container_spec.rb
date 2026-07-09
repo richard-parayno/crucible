@@ -3,8 +3,8 @@
 require "rails_helper"
 
 RSpec.describe PlacementDrivers::LocalContainer do
-  FakeStatus = Struct.new(:success?)
-  FakeResult = Struct.new(:stdout, :stderr, :status) do
+  LocalContainerFakeStatus = Struct.new(:success?)
+  LocalContainerFakeResult = Struct.new(:stdout, :stderr, :status) do
     def success?
       status.success?
     end
@@ -20,17 +20,17 @@ RSpec.describe PlacementDrivers::LocalContainer do
 
     def call(*argv)
       @calls << argv
-      @results.shift || FakeResult.new("", "", FakeStatus.new(true))
+      @results.shift || LocalContainerFakeResult.new("", "", LocalContainerFakeStatus.new(true))
     end
   end
 
   def result(stdout: "", stderr: "", success: true)
-    FakeResult.new(stdout, stderr, FakeStatus.new(success))
+    LocalContainerFakeResult.new(stdout, stderr, LocalContainerFakeStatus.new(success))
   end
 
   describe "#start" do
     it "starts a local container and records lifecycle events" do
-      runtime_instance = create(:runtime_instance)
+      runtime_instance = create(:runtime_instance, placement_kind: "local_container")
       adapter_spec = RuntimeAdapters::AdapterSpec.new(
         image: "alpine:latest",
         command: "echo ready",
@@ -58,7 +58,7 @@ RSpec.describe PlacementDrivers::LocalContainer do
 
   describe "#status" do
     it "maps a running container state through the adapter health check" do
-      runtime_instance = create(:runtime_instance, container_name: "runtime")
+      runtime_instance = create(:runtime_instance, placement_kind: "local_container", container_name: "runtime")
       runner = FakeCommandRunner.new([result(stdout: "running\n")])
       adapter = RuntimeAdapters::Custom.new
 

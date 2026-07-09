@@ -127,8 +127,7 @@ module PlacementDrivers
     end
 
     def known_env_values(runtime_instance)
-      runtime_instance.runtime_definition.default_env
-        .merge(runtime_instance.env)
+      EnvironmentVariableResolver.call(runtime_instance)
         .values
         .map(&:to_s)
         .select(&:present?)

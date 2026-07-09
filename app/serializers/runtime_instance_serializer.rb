@@ -38,8 +38,6 @@ class RuntimeInstanceSerializer
         started_at: runtime_instance.started_at&.iso8601,
         stopped_at: runtime_instance.stopped_at&.iso8601,
         last_heartbeat_at: runtime_instance.last_heartbeat_at&.iso8601,
-        env: runtime_instance.env,
-        config: runtime_instance.config,
         recent_events: runtime_instance.runtime_events.order(occurred_at: :desc).limit(50).reverse.map { |runtime_event| event(runtime_event) }
       }
     end

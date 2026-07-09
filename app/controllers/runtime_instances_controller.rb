@@ -9,8 +9,8 @@ class RuntimeInstancesController < InertiaController
     runtime_instance = @workspace.runtime_instances.create!(
       runtime_definition:,
       name: params[:name].presence || runtime_definition.name,
-      placement_kind: "local_container",
-      container_runtime: permitted_container_runtime,
+      placement_kind: "docker_compose",
+      container_runtime: "docker",
       env: parse_json_field(:env),
       config: parse_json_field(:config)
     )
@@ -50,11 +50,6 @@ class RuntimeInstancesController < InertiaController
 
   def set_runtime_instance
     @runtime_instance = @workspace.runtime_instances.find(params[:id])
-  end
-
-  def permitted_container_runtime
-    runtime = params[:container_runtime].presence || ContainerEngines.preferred
-    RuntimeInstance::CONTAINER_RUNTIMES.include?(runtime) ? runtime : ContainerEngines.preferred
   end
 
   def parse_json_field(key)

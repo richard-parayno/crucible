@@ -32,6 +32,23 @@ module RuntimeOrchestration
       raise
     end
 
+    def restart(runtime_instance)
+      driver = PlacementDrivers.for(runtime_instance.placement_kind)
+
+      if driver.respond_to?(:restart)
+        driver.restart(runtime_instance)
+        broadcast_instance(runtime_instance)
+      else
+        stop(runtime_instance) if runtime_instance.status.in?(%w[running unhealthy])
+        start(runtime_instance)
+      end
+    rescue StandardError => e
+      runtime_instance.failed!(e.message)
+      runtime_instance.runtime_events.create!(level: "error", message: e.message, occurred_at: Time.current)
+      broadcast_instance(runtime_instance)
+      raise
+    end
+
     def health_check(runtime_instance)
       adapter = RuntimeAdapters.for(runtime_instance.runtime_definition.kind)
       driver = PlacementDrivers.for(runtime_instance.placement_kind)

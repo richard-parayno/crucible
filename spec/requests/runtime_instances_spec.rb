@@ -12,11 +12,10 @@ RSpec.describe "Runtime instances", type: :request do
     ActiveJob::Base.queue_adapter = :test
   end
 
-  it "creates a local container runtime instance" do
+  it "creates a docker compose runtime instance" do
     post workspace_runtime_instances_path(workspace), params: {
       runtime_definition_id: runtime_definition.id,
       name: "Local custom",
-      container_runtime: "podman",
       config: {"command" => "echo ready"}.to_json,
       env: {"TOKEN" => "redacted"}.to_json
     }
@@ -25,8 +24,8 @@ RSpec.describe "Runtime instances", type: :request do
     expect(response).to redirect_to(workspace_path(workspace, runtime_instance_id: runtime_instance.id))
     expect(runtime_instance).to have_attributes(
       name: "Local custom",
-      placement_kind: "local_container",
-      container_runtime: "podman",
+      placement_kind: "docker_compose",
+      container_runtime: "docker",
       status: "pending"
     )
     expect(runtime_instance.config).to eq("command" => "echo ready")

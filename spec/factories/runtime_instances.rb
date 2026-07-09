@@ -6,7 +6,7 @@ FactoryBot.define do
     association :runtime_definition
     name { "Spec runtime" }
     status { "pending" }
-    placement_kind { "local_container" }
+    placement_kind { "docker_compose" }
     container_runtime { "docker" }
     env { {} }
     config { {} }

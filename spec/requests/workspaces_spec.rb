@@ -7,6 +7,9 @@ RSpec.describe "Workspaces", type: :request do
 
   before do
     sign_in_as(user)
+    allow(HostCapabilities).to receive(:new).and_return(
+      instance_double(HostCapabilities, call: {"container" => {"docker" => {"status" => "supported"}}})
+    )
   end
 
   it "creates a default workspace when opening the local supervisor" do
@@ -32,7 +35,6 @@ RSpec.describe "Workspaces", type: :request do
     expect(workspace_props).to have_key("runtime_instances")
     expect(props.fetch("workspaces")).to include(hash_including("id" => workspace.id))
     expect(props.fetch("runtime_definitions")).not_to be_empty
-    expect(props).to have_key("container_engines")
-    expect(props).to have_key("default_container_engine")
+    expect(props).to have_key("host_capabilities")
   end
 end

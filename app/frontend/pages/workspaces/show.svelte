@@ -33,6 +33,7 @@
     id: number
     name: string
     status: string
+    placement_kind: string
     runtime_kind: string
     runtime_name: string
     container_runtime: string
@@ -67,16 +68,14 @@
     workspace: Workspace
     workspaces: WorkspaceSummary[]
     runtime_definitions: RuntimeDefinition[]
-    container_engines: string[]
-    default_container_engine: string
+    host_capabilities: Record<string, unknown>
   }
 
   let {
     workspace,
     workspaces,
     runtime_definitions: runtimeDefinitions,
-    container_engines: containerEngines,
-    default_container_engine: defaultContainerEngine,
+    host_capabilities: hostCapabilities,
   }: Props = $props()
 
   let runtimeInstances = $state<RuntimeInstance[]>(workspace.runtime_instances)
@@ -157,6 +156,22 @@
     return "bg-muted text-muted-foreground border-border"
   }
 
+  function capabilityStatus(path: string[]) {
+    let value: unknown = hostCapabilities
+
+    for (const key of path) {
+      if (!value || typeof value !== "object") return "unknown"
+      value = (value as Record<string, unknown>)[key]
+    }
+
+    if (!value || typeof value !== "object") return "unknown"
+
+    return (
+      ((value as Record<string, unknown>).status as string | undefined) ??
+      "unknown"
+    )
+  }
+
   onMount(() => {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws"
     const socket = new WebSocket(`${protocol}://${window.location.host}/cable`)
@@ -204,9 +219,19 @@
           </h1>
         </div>
         <p class="text-muted-foreground mt-1 max-w-2xl text-sm">
-          Local-only supervisor for containerized agent runtimes. Everything on
-          this branch runs through the local container placement driver.
+          Local-only supervisor for Docker Compose managed agent runtimes.
         </p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <Badge variant="outline"
+            >Docker {capabilityStatus(["container", "docker"])}</Badge
+          >
+          <Badge variant="outline"
+            >Compose {capabilityStatus(["container", "docker_compose"])}</Badge
+          >
+          <Badge variant="outline"
+            >Tailscale {capabilityStatus(["networking", "tailscale"])}</Badge
+          >
+        </div>
       </div>
 
       <Form method="post" action={workspacesPath()} class="flex gap-2">
@@ -240,7 +265,7 @@
         <section class="border-border rounded-lg border p-4">
           <HeadingSmall
             title="Add runtime"
-            description="Choose an adapter and run it locally in Docker or Podman."
+            description="Choose an agent template and run it as a Docker Compose project."
           />
 
           <Form
@@ -273,19 +298,6 @@
                   placeholder={selectedRuntimeDefinition?.name ?? "Runtime"}
                 />
                 <InputError messages={errors.name} />
-              </div>
-
-              <div class="grid gap-2">
-                <Label for="container_runtime">Container engine</Label>
-                <select
-                  id="container_runtime"
-                  name="container_runtime"
-                  class="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-                >
-                  {#each containerEngines.length ? containerEngines : [defaultContainerEngine] as engine (engine)}
-                    <option value={engine}>{engine}</option>
-                  {/each}
-                </select>
               </div>
 
               <div class="grid gap-2">
@@ -341,7 +353,7 @@
                     <div class="min-w-0">
                       <p class="truncate font-medium">{runtimeInstance.name}</p>
                       <p class="text-muted-foreground truncate text-xs">
-                        {runtimeInstance.runtime_name} via {runtimeInstance.container_runtime}
+                        {runtimeInstance.runtime_name} via Docker Compose
                         {#if runtimeInstance.container_name}
                           · {runtimeInstance.container_name}
                         {/if}
