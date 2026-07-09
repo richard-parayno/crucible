@@ -15,7 +15,8 @@ class RuntimeInstancesController < InertiaController
       config: parse_json_field(:config)
     )
 
-    redirect_to workspace_path(@workspace, runtime_instance_id: runtime_instance.id), notice: "Runtime added."
+    StartRuntimeInstanceJob.perform_later(runtime_instance)
+    redirect_to workspace_path(@workspace, runtime_instance_id: runtime_instance.id), notice: "Runtime added and start queued."
   rescue ActiveRecord::RecordInvalid => e
     redirect_to workspace_path(@workspace), inertia: {errors: e.record.errors}
   rescue JSON::ParserError => e
