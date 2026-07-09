@@ -33,6 +33,7 @@ class RuntimeInstanceSerializer
         placement_kind: runtime_instance.placement_kind,
         container_runtime: runtime_instance.container_runtime,
         container_name: runtime_instance.container_name,
+        compose_project: ComposeProjectPresenter.call(runtime_instance),
         runtime_kind: runtime_instance.runtime_definition.kind,
         runtime_name: runtime_instance.runtime_definition.name,
         status_message: runtime_instance.status_message,
