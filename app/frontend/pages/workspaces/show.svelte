@@ -15,6 +15,7 @@
 
   import HeadingSmall from "@/components/heading-small.svelte"
   import InputError from "@/components/input-error.svelte"
+  import SetupPreflight from "@/components/setup-preflight.svelte"
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import { Input } from "@/components/ui/input"
@@ -277,22 +278,6 @@
     selectedTemplateMode = defaultTemplateMode(runtimeDefinition)
   }
 
-  function capabilityStatus(path: string[]) {
-    let value: unknown = hostCapabilities
-
-    for (const key of path) {
-      if (!value || typeof value !== "object") return "unknown"
-      value = (value as Record<string, unknown>)[key]
-    }
-
-    if (!value || typeof value !== "object") return "unknown"
-
-    return (
-      ((value as Record<string, unknown>).status as string | undefined) ??
-      "unknown"
-    )
-  }
-
   onMount(() => {
     const protocol = window.location.protocol === "https:" ? "wss" : "ws"
     const socket = new WebSocket(`${protocol}://${window.location.host}/cable`)
@@ -342,17 +327,6 @@
         <p class="text-muted-foreground mt-1 max-w-2xl text-sm">
           Local-only supervisor for Docker Compose managed agent runtimes.
         </p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <Badge variant="outline"
-            >Docker {capabilityStatus(["container", "docker"])}</Badge
-          >
-          <Badge variant="outline"
-            >Compose {capabilityStatus(["container", "docker_compose"])}</Badge
-          >
-          <Badge variant="outline"
-            >Tailscale {capabilityStatus(["networking", "tailscale"])}</Badge
-          >
-        </div>
       </div>
 
       <Form method="post" action={workspacesPath()} class="flex gap-2">
@@ -365,6 +339,8 @@
         {/snippet}
       </Form>
     </section>
+
+    <SetupPreflight {hostCapabilities} {runtimeDefinitions} />
 
     <div class="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
       <aside class="border-border rounded-lg border p-3">
