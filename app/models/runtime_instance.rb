@@ -7,6 +7,7 @@ class RuntimeInstance < ApplicationRecord
 
   belongs_to :workspace
   belongs_to :runtime_definition
+  has_many :environment_variables, dependent: :destroy
   has_many :runtime_events, dependent: :destroy
   has_many :runtime_artifacts, dependent: :destroy
 

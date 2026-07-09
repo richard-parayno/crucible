@@ -10,7 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_06_065649) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_09_145753) do
+  create_table "environment_variables", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.boolean "enabled", default: true, null: false
+    t.string "key", null: false
+    t.integer "runtime_instance_id"
+    t.string "scope", null: false
+    t.boolean "sensitive", default: false, null: false
+    t.datetime "updated_at", null: false
+    t.text "value", null: false
+    t.index ["runtime_instance_id", "key"], name: "index_environment_variables_on_runtime_instance_key", unique: true, where: "scope = 'runtime_instance' AND runtime_instance_id IS NOT NULL"
+    t.index ["runtime_instance_id"], name: "index_environment_variables_on_runtime_instance_id"
+    t.index ["scope", "key"], name: "index_environment_variables_on_system_key", unique: true, where: "scope = 'system' AND runtime_instance_id IS NULL"
+    t.check_constraint "(scope = 'system' AND runtime_instance_id IS NULL) OR (scope = 'runtime_instance' AND runtime_instance_id IS NOT NULL)", name: "environment_variables_scope_runtime_instance_check"
+    t.check_constraint "scope IN ('system', 'runtime_instance')", name: "environment_variables_scope_check"
+  end
+
   create_table "runtime_artifacts", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "kind"
@@ -94,6 +110,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_06_065649) do
     t.index ["user_id"], name: "index_workspaces_on_user_id"
   end
 
+  add_foreign_key "environment_variables", "runtime_instances"
   add_foreign_key "runtime_artifacts", "runtime_instances"
   add_foreign_key "runtime_events", "runtime_instances"
   add_foreign_key "runtime_instances", "runtime_definitions"
