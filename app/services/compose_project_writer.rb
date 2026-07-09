@@ -45,8 +45,20 @@ class ComposeProjectWriter
 
     service["environment"] = env_references(adapter_spec.env) if adapter_spec.env.present?
     service["labels"] = adapter_spec.labels if adapter_spec.labels.present?
+    service["volumes"] = volume_payloads(adapter_spec.volumes) if adapter_spec.volumes.present?
 
     {"services" => {SERVICE_NAME => service}}
+  end
+
+  def volume_payloads(volumes)
+    volumes.map do |volume|
+      {
+        "type" => volume.fetch(:type, "bind"),
+        "source" => volume.fetch(:source).to_s,
+        "target" => volume.fetch(:target).to_s,
+        "read_only" => volume.fetch(:read_only, false)
+      }
+    end
   end
 
   def env_references(env)

@@ -33,6 +33,11 @@ class HostCapabilities
     }
   end
 
+  def executable_path(command)
+    capability = executable_capability(command)
+    capability.fetch(:path) if capability.fetch(:supported)
+  end
+
   private
 
   attr_reader :command_runner, :command_lookup, :disk_path, :meminfo_path

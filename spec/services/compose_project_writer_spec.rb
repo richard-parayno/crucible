@@ -47,5 +47,57 @@ RSpec.describe ComposeProjectWriter do
       expect(project.env_path.read).to include("API_TOKEN='super secret'")
       expect(project.env_path.read).to include("CRUCIBLE_MESSAGE='hello'")
     end
+
+    it "writes host binary mounts and labels without embedding env values" do
+      runtime_definition = create(:runtime_definition, **AgentCatalog.runtime_definitions.find { |definition| definition.fetch(:kind) == "codex" })
+      runtime_instance = create(:runtime_instance, runtime_definition:, placement_kind: "docker_compose")
+      adapter_spec = RuntimeAdapters::AdapterSpec.new(
+        image: "node:24-alpine",
+        command: "/opt/crucible/host-binaries/codex --help",
+        env: {"API_TOKEN" => "super secret"},
+        labels: {
+          "crucible.runtime_instance_id" => runtime_instance.id.to_s,
+          "crucible.runtime_kind" => "codex",
+          "crucible.template_mode" => "host_binary",
+          "crucible.host_binary" => "codex",
+          "crucible.host_binary_target" => "/opt/crucible/host-binaries/codex"
+        },
+        workdir: "/",
+        volumes: [
+          {
+            type: "bind",
+            source: "/usr/local/bin/codex",
+            target: "/opt/crucible/host-binaries/codex",
+            read_only: true
+          }
+        ]
+      )
+
+      project = described_class.new(root:).write(runtime_instance, adapter_spec)
+      compose = YAML.safe_load(project.compose_path.read)
+      agent = compose.fetch("services").fetch("agent")
+
+      expect(agent).to include(
+        "image" => "node:24-alpine",
+        "working_dir" => "/",
+        "command" => ["sh", "-lc", "/opt/crucible/host-binaries/codex --help"]
+      )
+      expect(agent.fetch("volumes")).to eq([
+        {
+          "type" => "bind",
+          "source" => "/usr/local/bin/codex",
+          "target" => "/opt/crucible/host-binaries/codex",
+          "read_only" => true
+        }
+      ])
+      expect(agent.fetch("labels")).to include(
+        "crucible.runtime_kind" => "codex",
+        "crucible.template_mode" => "host_binary",
+        "crucible.host_binary_target" => "/opt/crucible/host-binaries/codex"
+      )
+      expect(agent.fetch("environment")).to eq("API_TOKEN" => "${API_TOKEN}")
+      expect(project.compose_path.read).not_to include("super secret")
+      expect(project.env_path.read).to include("API_TOKEN='super secret'")
+    end
   end
 end

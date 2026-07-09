@@ -4,6 +4,7 @@ class AgentCatalog
   TEMPLATE_CONFIG_FIELDS = {
     "command" => "Shell command executed inside the Compose-managed runtime",
     "container_image" => "Container image used for the Compose-managed runtime",
+    "host_binary_path" => "Absolute host path to a binary that will be bind-mounted read-only into the Compose-managed runtime",
     "template_mode" => "Catalog template mode selected for this runtime"
   }.freeze
 
@@ -27,7 +28,9 @@ class AgentCatalog
           mode: "host_binary",
           name: "Host binary",
           description: "Use host Codex binary detection as an input to a Compose sandbox template; the catalog does not execute Codex directly on the host.",
-          binary: "codex"
+          binary: "codex",
+          container_image: "node:24-alpine",
+          default_command: "{{host_binary}} --help && tail -f /dev/null"
         }
       ]
     },
@@ -50,7 +53,9 @@ class AgentCatalog
           mode: "host_binary",
           name: "Host binary",
           description: "Use host OpenClaw binary detection as an input to a Compose sandbox template; the catalog does not execute OpenClaw directly on the host.",
-          binary: "openclaw"
+          binary: "openclaw",
+          container_image: "node:24-alpine",
+          default_command: "{{host_binary}} --help && tail -f /dev/null"
         }
       ]
     },
@@ -73,7 +78,9 @@ class AgentCatalog
           mode: "host_binary",
           name: "Host binary",
           description: "Use host Hermes Agent binary detection as an input to a Compose sandbox template; the catalog does not execute Hermes Agent directly on the host.",
-          binary: "hermes-agent"
+          binary: "hermes-agent",
+          container_image: "node:24-alpine",
+          default_command: "{{host_binary}} --help && tail -f /dev/null"
         }
       ]
     },
@@ -125,6 +132,18 @@ class AgentCatalog
           binary: template.fetch(:binary)
         }
       end
+    end
+
+    def template_for(kind, mode)
+      agent = entries.find { |candidate| candidate.fetch(:kind) == kind }
+      return unless agent
+
+      agent.fetch(:templates).find { |template| template.fetch(:mode) == mode }
+    end
+
+    def default_template_mode_for(kind)
+      agent = entries.find { |candidate| candidate.fetch(:kind) == kind }
+      agent&.fetch(:templates)&.first&.fetch(:mode)
     end
 
     private
