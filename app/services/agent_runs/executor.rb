@@ -35,6 +35,8 @@ module AgentRuns
       agent_run.failed!(message) if agent_run.persisted? && agent_run.status != "failed"
       record_event(agent_run, "error", message, phase: "failed") if agent_run.persisted?
       raise
+    ensure
+      RuntimeInstanceBroadcaster.call(runtime_instance) if runtime_instance
     end
 
     private

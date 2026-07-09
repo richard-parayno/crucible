@@ -71,13 +71,7 @@ module RuntimeOrchestration
     private
 
     def broadcast_instance(runtime_instance)
-      RuntimeInstancesChannel.broadcast_to(
-        runtime_instance.workspace,
-        {
-          type: "runtime_instance",
-          instance: RuntimeInstanceSerializer.instance(runtime_instance)
-        }
-      )
+      RuntimeInstanceBroadcaster.call(runtime_instance)
     end
   end
 end

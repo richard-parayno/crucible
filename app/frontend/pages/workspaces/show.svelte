@@ -53,12 +53,22 @@
     runtime_name: string
     container_runtime: string
     container_name?: string
+    compose_project?: ComposeProject | null
     status_message?: string
     started_at?: string
     stopped_at?: string
     environment_variables: EnvironmentVariable[]
     recent_agent_runs: AgentRun[]
     recent_events: RuntimeEvent[]
+  }
+
+  interface ComposeProject {
+    directory_path: string
+    compose_path: string
+    env_path: string
+    project_name: string
+    service_name: string
+    commands: Record<string, string[]>
   }
 
   interface AgentRun {
@@ -204,6 +214,14 @@
     selectedInstance?.environment_variables ?? [],
   )
 
+  const selectedComposeProject = $derived(
+    selectedInstance?.compose_project ?? null,
+  )
+
+  const selectedComposeCommands = $derived(
+    Object.entries(selectedComposeProject?.commands ?? {}),
+  )
+
   const configTemplate = $derived(
     JSON.stringify(
       {
@@ -276,6 +294,24 @@
       (candidate) => candidate.id.toString() === runtimeDefinitionId,
     )
     selectedTemplateMode = defaultTemplateMode(runtimeDefinition)
+  }
+
+  function commandLabel(value: string) {
+    return value
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ")
+  }
+
+  function shellCommand(argv: string[]) {
+    return argv.map(shellQuote).join(" ")
+  }
+
+  function shellQuote(value: string) {
+    if (value === "") return "''"
+    if (/^[A-Za-z0-9_/:=.+,@%-]+$/.test(value)) return value
+
+    return `'${value.replaceAll("'", "'\"'\"'")}'`
   }
 
   onMount(() => {
@@ -439,7 +475,9 @@
                   value={"{}"}></textarea>
               </div>
 
-              <Button type="submit" disabled={processing}>Add runtime</Button>
+              <Button type="submit" disabled={processing}>
+                Add and start runtime
+              </Button>
             {/snippet}
           </Form>
         </section>
@@ -586,6 +624,77 @@
                   </Form>
                 </div>
               </div>
+
+              {#if selectedComposeProject}
+                <section class="border-border mt-5 rounded-lg border">
+                  <div class="border-border border-b p-3">
+                    <HeadingSmall
+                      title="Compose project"
+                      description="Files and commands for direct Docker access."
+                    />
+                  </div>
+                  <div class="grid gap-4 p-3">
+                    <div class="grid gap-2 text-sm lg:grid-cols-2">
+                      <div class="min-w-0">
+                        <p
+                          class="text-muted-foreground text-xs font-medium uppercase"
+                        >
+                          Project
+                        </p>
+                        <p class="truncate font-mono">
+                          {selectedComposeProject.project_name}
+                        </p>
+                      </div>
+                      <div class="min-w-0">
+                        <p
+                          class="text-muted-foreground text-xs font-medium uppercase"
+                        >
+                          Service
+                        </p>
+                        <p class="truncate font-mono">
+                          {selectedComposeProject.service_name}
+                        </p>
+                      </div>
+                      <div class="min-w-0">
+                        <p
+                          class="text-muted-foreground text-xs font-medium uppercase"
+                        >
+                          Compose file
+                        </p>
+                        <p class="break-all font-mono text-xs">
+                          {selectedComposeProject.compose_path}
+                        </p>
+                      </div>
+                      <div class="min-w-0">
+                        <p
+                          class="text-muted-foreground text-xs font-medium uppercase"
+                        >
+                          Env file
+                        </p>
+                        <p class="break-all font-mono text-xs">
+                          {selectedComposeProject.env_path}
+                        </p>
+                      </div>
+                    </div>
+
+                    {#if selectedComposeCommands.length > 0}
+                      <div class="divide-border divide-y rounded-md border">
+                        {#each selectedComposeCommands as [name, argv] (name)}
+                          <div class="grid gap-1 p-2">
+                            <p class="text-sm font-medium">
+                              {commandLabel(name)}
+                            </p>
+                            <pre
+                              class="overflow-auto rounded bg-black p-2 text-xs whitespace-pre-wrap text-white">{shellCommand(
+                                argv,
+                              )}</pre>
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
+                </section>
+              {/if}
 
               <section class="border-border mt-5 rounded-lg border">
                 <div class="border-border border-b p-3">

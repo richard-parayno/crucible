@@ -280,7 +280,7 @@
             </dd>
             {#if row.details.length > 0}
               <dd class="col-span-2 min-w-0 space-y-1">
-                {#each row.details as detail}
+                {#each row.details as detail (detail)}
                   <p
                     class="text-muted-foreground min-w-0 text-xs leading-5 break-words [overflow-wrap:anywhere]"
                   >
