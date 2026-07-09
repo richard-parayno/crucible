@@ -38,6 +38,7 @@ class RuntimeInstanceSerializer
         started_at: runtime_instance.started_at&.iso8601,
         stopped_at: runtime_instance.stopped_at&.iso8601,
         last_heartbeat_at: runtime_instance.last_heartbeat_at&.iso8601,
+        recent_agent_runs: runtime_instance.agent_runs.order(created_at: :desc).limit(10).map { |agent_run| AgentRunSerializer.run(agent_run) },
         recent_events: runtime_instance.runtime_events.order(occurred_at: :desc).limit(50).reverse.map { |runtime_event| event(runtime_event) }
       }
     end

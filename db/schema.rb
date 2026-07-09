@@ -10,7 +10,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_09_145753) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_09_151605) do
+  create_table "agent_runs", force: :cascade do |t|
+    t.text "command", null: false
+    t.datetime "created_at", null: false
+    t.integer "exit_code"
+    t.datetime "finished_at"
+    t.text "output"
+    t.text "prompt"
+    t.integer "runtime_instance_id", null: false
+    t.datetime "started_at"
+    t.string "status", default: "queued", null: false
+    t.text "status_message"
+    t.datetime "updated_at", null: false
+    t.index ["runtime_instance_id", "created_at"], name: "index_agent_runs_on_runtime_instance_id_and_created_at"
+    t.index ["runtime_instance_id"], name: "index_agent_runs_on_runtime_instance_id"
+    t.index ["status"], name: "index_agent_runs_on_status"
+  end
+
   create_table "environment_variables", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.boolean "enabled", default: true, null: false
@@ -110,6 +127,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_09_145753) do
     t.index ["user_id"], name: "index_workspaces_on_user_id"
   end
 
+  add_foreign_key "agent_runs", "runtime_instances"
   add_foreign_key "environment_variables", "runtime_instances"
   add_foreign_key "runtime_artifacts", "runtime_instances"
   add_foreign_key "runtime_events", "runtime_instances"

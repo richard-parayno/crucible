@@ -18,6 +18,8 @@ Rails.application.routes.draw do
 
   resources :workspaces, only: %i[index show create] do
     resources :runtime_instances, only: %i[create] do
+      resources :agent_runs, only: %i[create]
+
       member do
         post :start
         post :stop

@@ -80,6 +80,12 @@ module PlacementDrivers
       capture_recent_logs(runtime_instance)
     end
 
+    def exec(runtime_instance, command)
+      project = @project_writer.project_for(runtime_instance)
+
+      @command_runner.call(*compose_command(project, "exec", "-T", project.service_name, "sh", "-lc", command.to_s))
+    end
+
     private
 
     def compose_command(project, *args)

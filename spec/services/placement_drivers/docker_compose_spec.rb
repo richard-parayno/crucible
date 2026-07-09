@@ -126,6 +126,21 @@ RSpec.describe PlacementDrivers::DockerCompose do
     end
   end
 
+  describe "#exec" do
+    it "runs a shell command inside the compose agent service without requiring a TTY" do
+      runtime_instance = create(:runtime_instance, placement_kind: "docker_compose")
+      project = project_writer.write(runtime_instance, adapter_spec(runtime_instance))
+      runner = ComposeFakeCommandRunner.new([result(stdout: "ok\n")])
+
+      compose_result = described_class.new(command_runner: runner, project_writer:).exec(runtime_instance, "echo ok")
+
+      expect(compose_result.stdout).to eq("ok\n")
+      expect(runner.calls).to eq([
+        [*compose_prefix(project), "exec", "-T", "agent", "sh", "-lc", "echo ok"]
+      ])
+    end
+  end
+
   describe "#status" do
     it "maps compose service state through the adapter health check" do
       runtime_instance = create(:runtime_instance, placement_kind: "docker_compose")
