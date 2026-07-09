@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class RuntimeDefinition < ApplicationRecord
-  KINDS = %w[openclaw hermes custom].freeze
+  KINDS = %w[codex openclaw hermes custom].freeze
 
   has_many :runtime_instances, dependent: :restrict_with_exception
 
