@@ -1,7 +1,16 @@
 <script lang="ts">
   import type { FormComponentSlotProps } from "@inertiajs/core"
   import { Form } from "@inertiajs/svelte"
-  import { Boxes, Play, RefreshCw, Square, Stethoscope } from "@lucide/svelte"
+  import {
+    Boxes,
+    Play,
+    Power,
+    RefreshCw,
+    Save,
+    Square,
+    Stethoscope,
+    Trash2,
+  } from "@lucide/svelte"
   import { onMount } from "svelte"
 
   import HeadingSmall from "@/components/heading-small.svelte"
@@ -16,7 +25,11 @@
     restartWorkspaceRuntimeInstancePath,
     startWorkspaceRuntimeInstancePath,
     stopWorkspaceRuntimeInstancePath,
+    workspaceEnvironmentVariablePath,
+    workspaceEnvironmentVariablesPath,
     workspacePath,
+    workspaceRuntimeInstanceEnvironmentVariablePath,
+    workspaceRuntimeInstanceEnvironmentVariablesPath,
     workspaceRuntimeInstancesPath,
     workspacesPath,
   } from "@/routes"
@@ -41,7 +54,19 @@
     status_message?: string
     started_at?: string
     stopped_at?: string
+    environment_variables: EnvironmentVariable[]
     recent_events: RuntimeEvent[]
+  }
+
+  interface EnvironmentVariable {
+    id: number
+    scope: "system" | "runtime_instance"
+    key: string
+    value: string
+    sensitive: boolean
+    enabled: boolean
+    runtime_instance_id?: number
+    value_present: boolean
   }
 
   interface RuntimeDefinition {
@@ -68,6 +93,8 @@
     workspace: Workspace
     workspaces: WorkspaceSummary[]
     runtime_definitions: RuntimeDefinition[]
+    system_environment_variables: EnvironmentVariable[]
+    selected_runtime_instance_id?: number | null
     host_capabilities: Record<string, unknown>
   }
 
@@ -75,6 +102,8 @@
     workspace,
     workspaces,
     runtime_definitions: runtimeDefinitions,
+    system_environment_variables: systemEnvironmentVariables,
+    selected_runtime_instance_id: selectedRuntimeInstanceId = null,
     host_capabilities: hostCapabilities,
   }: Props = $props()
 
@@ -83,7 +112,7 @@
     runtimeDefinitions[0]?.id?.toString() ?? "",
   )
   let selectedInstanceId = $state<number | null>(
-    runtimeInstances[0]?.id ?? null,
+    selectedRuntimeInstanceId ?? runtimeInstances[0]?.id ?? null,
   )
 
   const breadcrumbs: BreadcrumbItem[] = [
@@ -108,6 +137,10 @@
     runtimeInstances.find(
       (runtimeInstance) => runtimeInstance.id === selectedInstanceId,
     ) ?? runtimeInstances[0],
+  )
+
+  const selectedRuntimeEnvironmentVariables = $derived(
+    selectedInstance?.environment_variables ?? [],
   )
 
   const configTemplate = $derived(
@@ -467,6 +500,380 @@
                     {/snippet}
                   </Form>
                 </div>
+              </div>
+
+              <div class="mt-5 grid gap-4 2xl:grid-cols-2">
+                <section class="border-border rounded-lg border">
+                  <div class="border-border border-b p-3">
+                    <HeadingSmall
+                      title="System env"
+                      description="Applies before runtime overrides."
+                    />
+                  </div>
+
+                  <div class="space-y-3 p-3">
+                    <Form
+                      method="post"
+                      action={workspaceEnvironmentVariablesPath(workspace.id)}
+                      class="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]"
+                    >
+                      {#snippet children({ errors, processing }: FormComponentSlotProps)}
+                        <input
+                          type="hidden"
+                          name="return_runtime_instance_id"
+                          value={selectedInstance?.id ?? ""}
+                        />
+                        <Input
+                          name="key"
+                          placeholder="KEY"
+                          aria-label="System environment variable key"
+                          autocomplete="off"
+                          required
+                        />
+                        <Input
+                          name="value"
+                          placeholder="Value"
+                          aria-label="System environment variable value"
+                          autocomplete="off"
+                          required
+                        />
+                        <label
+                          class="text-muted-foreground flex h-9 items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="hidden"
+                            name="sensitive"
+                            value="0"
+                          />
+                          <input
+                            type="checkbox"
+                            name="sensitive"
+                            value="1"
+                            class="size-4"
+                          />
+                          Secret
+                        </label>
+                        <Button type="submit" disabled={processing}>
+                          <Save class="size-4" />
+                          Add
+                        </Button>
+                        <InputError messages={errors.key} />
+                        <InputError messages={errors.value} />
+                      {/snippet}
+                    </Form>
+
+                    {#if systemEnvironmentVariables.length === 0}
+                      <p class="text-muted-foreground text-sm">
+                        No system variables.
+                      </p>
+                    {:else}
+                      <div class="divide-border divide-y rounded-md border">
+                        {#each systemEnvironmentVariables as variable (variable.id)}
+                          <div class="grid gap-2 p-2">
+                            <Form
+                              method="patch"
+                              action={workspaceEnvironmentVariablePath(
+                                workspace.id,
+                                variable.id,
+                              )}
+                              class="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]"
+                            >
+                              {#snippet children({ processing }: FormComponentSlotProps)}
+                                <input
+                                  type="hidden"
+                                  name="return_runtime_instance_id"
+                                  value={selectedInstance?.id ?? ""}
+                                />
+                                <Input
+                                  name="key"
+                                  value={variable.key}
+                                  aria-label="System environment variable key"
+                                  autocomplete="off"
+                                  required
+                                />
+                                <Input
+                                  name="value"
+                                  value={variable.sensitive
+                                    ? ""
+                                    : variable.value}
+                                  placeholder={variable.sensitive
+                                    ? variable.value
+                                    : "Value"}
+                                  type={variable.sensitive
+                                    ? "password"
+                                    : "text"}
+                                  aria-label="System environment variable value"
+                                  autocomplete="off"
+                                />
+                                <label
+                                  class="text-muted-foreground flex h-9 items-center gap-2 text-sm"
+                                >
+                                  <input
+                                    type="hidden"
+                                    name="sensitive"
+                                    value="0"
+                                  />
+                                  <input
+                                    type="checkbox"
+                                    name="sensitive"
+                                    value="1"
+                                    checked={variable.sensitive}
+                                    class="size-4"
+                                  />
+                                  Secret
+                                </label>
+                                <Button
+                                  type="submit"
+                                  variant="outline"
+                                  disabled={processing}
+                                >
+                                  <Save class="size-4" />
+                                  Save
+                                </Button>
+                              {/snippet}
+                            </Form>
+
+                            <div class="flex justify-end gap-2">
+                              <Form
+                                method="patch"
+                                action={workspaceEnvironmentVariablePath(
+                                  workspace.id,
+                                  variable.id,
+                                )}
+                              >
+                                {#snippet children({ processing }: FormComponentSlotProps)}
+                                  <input
+                                    type="hidden"
+                                    name="return_runtime_instance_id"
+                                    value={selectedInstance?.id ?? ""}
+                                  />
+                                  <input
+                                    type="hidden"
+                                    name="enabled"
+                                    value={variable.enabled ? "0" : "1"}
+                                  />
+                                  <Button
+                                    type="submit"
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={processing}
+                                  >
+                                    <Power class="size-4" />
+                                    {variable.enabled ? "Disable" : "Enable"}
+                                  </Button>
+                                {/snippet}
+                              </Form>
+
+                              <Form
+                                method="delete"
+                                action={workspaceEnvironmentVariablePath(
+                                  workspace.id,
+                                  variable.id,
+                                )}
+                              >
+                                {#snippet children({ processing }: FormComponentSlotProps)}
+                                  <input
+                                    type="hidden"
+                                    name="return_runtime_instance_id"
+                                    value={selectedInstance?.id ?? ""}
+                                  />
+                                  <Button
+                                    type="submit"
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={processing}
+                                  >
+                                    <Trash2 class="size-4" />
+                                    Delete
+                                  </Button>
+                                {/snippet}
+                              </Form>
+                            </div>
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
+                </section>
+
+                <section class="border-border rounded-lg border">
+                  <div class="border-border border-b p-3">
+                    <HeadingSmall
+                      title="Runtime env"
+                      description="Overrides for the selected runtime."
+                    />
+                  </div>
+
+                  <div class="space-y-3 p-3">
+                    <Form
+                      method="post"
+                      action={workspaceRuntimeInstanceEnvironmentVariablesPath(
+                        workspace.id,
+                        selectedInstance.id,
+                      )}
+                      class="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]"
+                    >
+                      {#snippet children({ errors, processing }: FormComponentSlotProps)}
+                        <Input
+                          name="key"
+                          placeholder="KEY"
+                          aria-label="Runtime environment variable key"
+                          autocomplete="off"
+                          required
+                        />
+                        <Input
+                          name="value"
+                          placeholder="Value"
+                          aria-label="Runtime environment variable value"
+                          autocomplete="off"
+                          required
+                        />
+                        <label
+                          class="text-muted-foreground flex h-9 items-center gap-2 text-sm"
+                        >
+                          <input
+                            type="hidden"
+                            name="sensitive"
+                            value="0"
+                          />
+                          <input
+                            type="checkbox"
+                            name="sensitive"
+                            value="1"
+                            class="size-4"
+                          />
+                          Secret
+                        </label>
+                        <Button type="submit" disabled={processing}>
+                          <Save class="size-4" />
+                          Add
+                        </Button>
+                        <InputError messages={errors.key} />
+                        <InputError messages={errors.value} />
+                      {/snippet}
+                    </Form>
+
+                    {#if selectedRuntimeEnvironmentVariables.length === 0}
+                      <p class="text-muted-foreground text-sm">
+                        No runtime overrides.
+                      </p>
+                    {:else}
+                      <div class="divide-border divide-y rounded-md border">
+                        {#each selectedRuntimeEnvironmentVariables as variable (variable.id)}
+                          <div class="grid gap-2 p-2">
+                            <Form
+                              method="patch"
+                              action={workspaceRuntimeInstanceEnvironmentVariablePath(
+                                workspace.id,
+                                selectedInstance.id,
+                                variable.id,
+                              )}
+                              class="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]"
+                            >
+                              {#snippet children({ processing }: FormComponentSlotProps)}
+                                <Input
+                                  name="key"
+                                  value={variable.key}
+                                  aria-label="Runtime environment variable key"
+                                  autocomplete="off"
+                                  required
+                                />
+                                <Input
+                                  name="value"
+                                  value={variable.sensitive
+                                    ? ""
+                                    : variable.value}
+                                  placeholder={variable.sensitive
+                                    ? variable.value
+                                    : "Value"}
+                                  type={variable.sensitive
+                                    ? "password"
+                                    : "text"}
+                                  aria-label="Runtime environment variable value"
+                                  autocomplete="off"
+                                />
+                                <label
+                                  class="text-muted-foreground flex h-9 items-center gap-2 text-sm"
+                                >
+                                  <input
+                                    type="hidden"
+                                    name="sensitive"
+                                    value="0"
+                                  />
+                                  <input
+                                    type="checkbox"
+                                    name="sensitive"
+                                    value="1"
+                                    checked={variable.sensitive}
+                                    class="size-4"
+                                  />
+                                  Secret
+                                </label>
+                                <Button
+                                  type="submit"
+                                  variant="outline"
+                                  disabled={processing}
+                                >
+                                  <Save class="size-4" />
+                                  Save
+                                </Button>
+                              {/snippet}
+                            </Form>
+
+                            <div class="flex justify-end gap-2">
+                              <Form
+                                method="patch"
+                                action={workspaceRuntimeInstanceEnvironmentVariablePath(
+                                  workspace.id,
+                                  selectedInstance.id,
+                                  variable.id,
+                                )}
+                              >
+                                {#snippet children({ processing }: FormComponentSlotProps)}
+                                  <input
+                                    type="hidden"
+                                    name="enabled"
+                                    value={variable.enabled ? "0" : "1"}
+                                  />
+                                  <Button
+                                    type="submit"
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={processing}
+                                  >
+                                    <Power class="size-4" />
+                                    {variable.enabled ? "Disable" : "Enable"}
+                                  </Button>
+                                {/snippet}
+                              </Form>
+
+                              <Form
+                                method="delete"
+                                action={workspaceRuntimeInstanceEnvironmentVariablePath(
+                                  workspace.id,
+                                  selectedInstance.id,
+                                  variable.id,
+                                )}
+                              >
+                                {#snippet children({ processing }: FormComponentSlotProps)}
+                                  <Button
+                                    type="submit"
+                                    size="sm"
+                                    variant="ghost"
+                                    disabled={processing}
+                                  >
+                                    <Trash2 class="size-4" />
+                                    Delete
+                                  </Button>
+                                {/snippet}
+                              </Form>
+                            </div>
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
+                </section>
               </div>
 
               <div class="mt-5 overflow-hidden rounded-lg border bg-black">

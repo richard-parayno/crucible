@@ -17,8 +17,11 @@ Rails.application.routes.draw do
   get :dashboard, to: "dashboard#index"
 
   resources :workspaces, only: %i[index show create] do
+    resources :environment_variables, only: %i[create update destroy]
+
     resources :runtime_instances, only: %i[create] do
       resources :agent_runs, only: %i[create]
+      resources :environment_variables, only: %i[create update destroy]
 
       member do
         post :start
