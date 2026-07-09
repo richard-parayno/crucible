@@ -142,6 +142,29 @@
     selectedRuntimeInstanceId ?? runtimeInstances[0]?.id ?? null,
   )
 
+  $effect(() => {
+    runtimeInstances = workspace.runtime_instances
+
+    if (
+      selectedRuntimeInstanceId &&
+      runtimeInstances.some(
+        (runtimeInstance) => runtimeInstance.id === selectedRuntimeInstanceId,
+      )
+    ) {
+      selectedInstanceId = selectedRuntimeInstanceId
+      return
+    }
+
+    if (
+      !selectedInstanceId ||
+      !runtimeInstances.some(
+        (runtimeInstance) => runtimeInstance.id === selectedInstanceId,
+      )
+    ) {
+      selectedInstanceId = runtimeInstances[0]?.id ?? null
+    }
+  })
+
   const breadcrumbs: BreadcrumbItem[] = [
     {
       title: "Workspaces",
@@ -382,7 +405,7 @@
                   class="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   {#each runtimeDefinitions as runtimeDefinition (runtimeDefinition.id)}
-                    <option value={runtimeDefinition.id}>
+                    <option value={runtimeDefinition.id.toString()}>
                       {runtimeDefinition.name}
                     </option>
                   {/each}

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class WorkspacesController < InertiaController
-  before_action :ensure_runtime_definitions
+  before_action :sync_runtime_definitions
 
   def index
     workspace = Current.session.user.workspaces.order(created_at: :asc).first
@@ -41,7 +41,7 @@ class WorkspacesController < InertiaController
     workspace_path(workspace)
   end
 
-  def ensure_runtime_definitions
-    RuntimeDefinitionSeeder.call if RuntimeDefinition.active.none?
+  def sync_runtime_definitions
+    RuntimeDefinitionSeeder.call
   end
 end
