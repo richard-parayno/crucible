@@ -33,6 +33,7 @@ RSpec.describe "Codex sessions", type: :request do
     session = inertia.props.fetch("sessions").sole
     expect(session).to include(
       "id" => "session-one",
+      "route_id" => Base64.urlsafe_encode64("rollout-2026-07-10T10-00-00-session-one.jsonl", padding: false),
       "title" => "Show my local sessions",
       "cwd" => Rails.root.to_s,
       "current_repo" => true

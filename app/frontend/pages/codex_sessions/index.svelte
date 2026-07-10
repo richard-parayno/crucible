@@ -19,6 +19,7 @@
 
   interface CodexSession {
     id: string
+    route_id: string
     title: string
     cwd?: string
     started_at?: string
@@ -110,9 +111,9 @@
 
       {#if sessions.length > 0}
         <div class="divide-border divide-y">
-          {#each sessions as session (session.id)}
+          {#each sessions as session (session.route_id)}
             <Link
-              href={codexSessionPath(session.id)}
+              href={codexSessionPath(session.route_id)}
               class="hover:bg-muted/50 grid gap-4 p-4 transition-colors lg:grid-cols-[minmax(0,1fr)_13rem_11rem]"
             >
               <div class="min-w-0">

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "base64"
+
 module CodexSessions
   class Inventory
     Result = Data.define(:sessions, :source)
@@ -32,7 +34,7 @@ module CodexSessions
     end
 
     def find(session_id)
-      call.sessions.find { |session| session[:id] == session_id }
+      call.sessions.find { |session| session[:route_id] == session_id || session[:id] == session_id }
     end
 
     private
@@ -51,6 +53,7 @@ module CodexSessions
       )
 
       result.session.merge(
+        route_id: route_id(path),
         counts: result.counts,
         record_count: result.record_count,
         parse_error_count: result.parse_errors.size,
@@ -59,6 +62,12 @@ module CodexSessions
     rescue Errno::EACCES, Errno::EPERM
       @unreadable_count += 1
       nil
+    end
+
+    def route_id(path)
+      relative_path = path.relative_path_from(@root).to_s
+
+      Base64.urlsafe_encode64(relative_path, padding: false)
     end
 
     def current_repo?(cwd)

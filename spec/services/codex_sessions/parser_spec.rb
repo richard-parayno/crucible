@@ -155,7 +155,12 @@ RSpec.describe CodexSessions::Parser do
         response_item(
           "function_call_output",
           "call_id" => "call-1",
-          "output" => "x" * (described_class::TOOL_OUTPUT_LIMIT + 20)
+          "output" => [
+            {"type" => "session_meta", "payload" => {"base_instructions" => {"text" => "system prompt"}}}.to_json,
+            {"type" => "response_item", "payload" => {"type" => "message", "role" => "developer", "content" => "developer note"}}.to_json,
+            {"type" => "response_item", "payload" => {"type" => "reasoning", "encrypted_content" => "ciphertext"}}.to_json,
+            "x" * (described_class::TOOL_OUTPUT_LIMIT + 20)
+          ].join("\n")
         )
       ]
     )
@@ -165,8 +170,10 @@ RSpec.describe CodexSessions::Parser do
 
     expect(serialized).to include("[REDACTED]")
     expect(serialized).not_to include("system prompt")
+    expect(serialized).not_to include("base_instructions")
     expect(serialized).not_to include("developer note")
     expect(serialized).not_to include("ciphertext")
+    expect(serialized).not_to include("encrypted_content")
     expect(serialized).not_to include("abc123")
     expect(serialized).not_to include("sk-secret")
     expect(serialized).not_to include("quoted-secret")

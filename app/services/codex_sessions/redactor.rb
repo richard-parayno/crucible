@@ -5,6 +5,12 @@ module CodexSessions
     REDACTED = "[REDACTED]"
     SENSITIVE_KEY_PATTERN = /token|secret|password|key|authorization/i
     BEARER_PATTERN = /Bearer\s+[A-Za-z0-9._~+\/=-]+/
+    INTERNAL_SESSION_LINE_PATTERN = /
+      "base_instructions" |
+      "encrypted_content" |
+      "role"\s*:\s*"developer" |
+      "role"\s*=>\s*"developer"
+    /x
     ASSIGNMENT_PATTERN = /
       (?<key>[A-Za-z0-9_.-]*(?:token|secret|password|key|authorization)[A-Za-z0-9_.-]*)
       (?<separator>\s*[:=]\s*)
@@ -42,11 +48,18 @@ module CodexSessions
 
     def redact_string(value)
       value
+        .lines
+        .map { |line| internal_session_line?(line) ? "#{REDACTED} internal Codex session field\n" : line }
+        .join
         .gsub(BEARER_PATTERN, "Bearer #{REDACTED}")
         .gsub(ASSIGNMENT_PATTERN) do
           quote = Regexp.last_match[:double_quoted] ? "\"" : Regexp.last_match[:single_quoted] ? "'" : nil
           "#{Regexp.last_match[:key]}#{Regexp.last_match[:separator]}#{quote}#{REDACTED}#{quote}"
         end
+    end
+
+    def internal_session_line?(line)
+      line.match?(INTERNAL_SESSION_LINE_PATTERN)
     end
   end
 end

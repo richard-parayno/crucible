@@ -23,6 +23,7 @@ RSpec.describe CodexSessions::Inventory do
       parse_errors: []
     )
     expect(result.sessions.find { |session| session[:id] == "current-session" }).to include(
+      route_id: Base64.urlsafe_encode64("current.jsonl", padding: false),
       current_repo: true
     )
     expect(result.sessions.find { |session| session[:id] == "other-session" }).to include(
