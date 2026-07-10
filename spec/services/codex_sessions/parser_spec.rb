@@ -195,6 +195,41 @@ RSpec.describe CodexSessions::Parser do
     expect(result.timeline).to be_empty
   end
 
+  it "keeps only the requested timeline slice while counting displayable items" do
+    write_records(
+      [
+        response_item("message", "role" => "user", "content" => "First"),
+        response_item("message", "role" => "assistant", "content" => "Second"),
+        response_item("message", "role" => "user", "content" => "Third")
+      ]
+    )
+
+    result = described_class.new(path, timeline_offset: 1, timeline_limit: 1).call
+
+    expect(result.total_displayable).to eq(3)
+    expect(result.timeline.sole).to include(kind: "assistant_message", text: "Second")
+  end
+
+  it "does not sanitize skipped tool payloads outside the requested timeline slice" do
+    write_records(
+      [
+        response_item(
+          "function_call_output",
+          "call_id" => "call-1",
+          "output" => "token=skipped-secret"
+        ),
+        response_item("message", "role" => "user", "content" => "Visible")
+      ]
+    )
+    allow(CodexSessions::Redactor).to receive(:call).and_call_original
+
+    result = described_class.new(path, timeline_offset: 1, timeline_limit: 1).call
+
+    expect(result.total_displayable).to eq(2)
+    expect(result.timeline.sole).to include(kind: "user_message", text: "Visible")
+    expect(CodexSessions::Redactor).not_to have_received(:call).with("token=skipped-secret")
+  end
+
   private
 
   def write_records(records)

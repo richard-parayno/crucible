@@ -9,17 +9,21 @@ module CodexSessions
       :timeline,
       :counts,
       :parse_errors,
-      :record_count
+      :record_count,
+      :total_displayable
     )
 
-    def initialize(path, include_timeline: true)
+    def initialize(path, include_timeline: true, timeline_offset: 0, timeline_limit: nil)
       @path = Pathname(path)
       @include_timeline = include_timeline
+      @timeline_offset = [timeline_offset.to_i, 0].max
+      @timeline_limit = timeline_limit ? [timeline_limit.to_i, 0].max : nil
       @session = default_session
       @timeline = []
       @counts = Hash.new(0)
       @parse_errors = []
       @record_count = 0
+      @total_displayable = 0
     end
 
     def call
@@ -34,7 +38,8 @@ module CodexSessions
         timeline: @timeline,
         counts: @counts.to_h,
         parse_errors: @parse_errors,
-        record_count: @record_count
+        record_count: @record_count,
+        total_displayable: @total_displayable
       )
     end
 
@@ -45,7 +50,7 @@ module CodexSessions
       @record_count += 1
       @counts["records"] += 1
       handle_record(record, line_number)
-    rescue JSON::ParserError => e
+    rescue JSON::ParserError
       @parse_errors << {line: line_number, message: "Malformed JSON record."}
     end
 
@@ -94,6 +99,8 @@ module CodexSessions
 
       kind = event_type == "user_message" ? "user_message" : "agent_status"
       @counts[kind.pluralize] += 1
+      return unless capture_timeline_item?
+
       append_timeline(
         kind:,
         timestamp:,
@@ -123,9 +130,18 @@ module CodexSessions
       text = extract_text(payload["content"])
       return if text.blank?
 
-      sanitized_text = sanitize_text(text)
-      @session[:title] ||= sanitized_text.truncate(120) if role == "user"
       @counts["#{role}_messages"] += 1
+      capture_timeline_item = capture_timeline_item?
+      sanitized_text = nil
+
+      if role == "user" && @session[:title].blank?
+        sanitized_text = sanitize_text(text)
+        @session[:title] = sanitized_text.truncate(120)
+      end
+
+      return unless capture_timeline_item
+
+      sanitized_text ||= sanitize_text(text)
       append_timeline(
         kind: "#{role}_message",
         timestamp:,
@@ -137,6 +153,8 @@ module CodexSessions
 
     def handle_tool_call(payload, timestamp, line_number)
       @counts["tool_calls"] += 1
+      return unless capture_timeline_item?
+
       append_timeline(
         kind: "tool_call",
         timestamp:,
@@ -149,6 +167,9 @@ module CodexSessions
     end
 
     def handle_tool_output(payload, timestamp, line_number)
+      @counts["tool_outputs"] += 1
+      return unless capture_timeline_item?
+
       output = sanitize_value(parse_possible_json(payload["output"] || payload["tools"]))
       truncated = false
 
@@ -157,7 +178,6 @@ module CodexSessions
         truncated = true
       end
 
-      @counts["tool_outputs"] += 1
       append_timeline(
         kind: "tool_output",
         timestamp:,
@@ -170,9 +190,19 @@ module CodexSessions
     end
 
     def append_timeline(attributes)
-      return unless @include_timeline
-
       @timeline << attributes.compact
+    end
+
+    def capture_timeline_item?
+      return false unless @include_timeline
+
+      index = @total_displayable
+      @total_displayable += 1
+
+      return false if index < @timeline_offset
+      return false if @timeline_limit && @timeline.length >= @timeline_limit
+
+      true
     end
 
     def extract_text(content)

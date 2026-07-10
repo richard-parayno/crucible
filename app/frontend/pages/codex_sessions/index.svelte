@@ -1,8 +1,9 @@
 <script lang="ts">
   import { Link } from "@inertiajs/svelte"
-  import { Clock, FileText, Folder, Terminal } from "@lucide/svelte"
+  import { ChevronLeft, ChevronRight, Clock, FileText, Folder, Terminal } from "@lucide/svelte"
 
   import { Badge } from "@/components/ui/badge"
+  import { Button } from "@/components/ui/button"
   import AppLayout from "@/layouts/app-layout.svelte"
   import { agentsPath, codexSessionPath, codexSessionsPath } from "@/routes"
   import type { BreadcrumbItem } from "@/types"
@@ -37,16 +38,31 @@
   interface SourceMetadata {
     root_path: string
     scanned_count: number
+    parsed_count?: number
     unreadable_count: number
     parse_errors: Array<{ path: string; line: number; message: string }>
+    cache?: {
+      hits: number
+      misses: number
+    }
+  }
+
+  interface Pagination {
+    page: number
+    per_page: number
+    total_count: number
+    total_pages: number
+    has_previous_page: boolean
+    has_next_page: boolean
   }
 
   interface Props {
     sessions: CodexSession[]
     source: SourceMetadata
+    pagination: Pagination
   }
 
-  let { sessions, source }: Props = $props()
+  let { sessions, source, pagination }: Props = $props()
 
   const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -80,6 +96,13 @@
 
     return `${messages.toLocaleString()} messages, ${tools.toLocaleString()} tools`
   }
+
+  function pagePath(page: number) {
+    return codexSessionsPath({
+      page,
+      per_page: pagination.per_page,
+    })
+  }
 </script>
 
 <svelte:head>
@@ -103,9 +126,16 @@
         </div>
 
         <div class="text-muted-foreground flex flex-wrap gap-3 text-sm">
-          <span>{source.scanned_count.toLocaleString()} scanned</span>
+          <span>{source.scanned_count.toLocaleString()} found</span>
+          <span>{(source.parsed_count ?? sessions.length).toLocaleString()} parsed</span>
           <span>{source.unreadable_count.toLocaleString()} unreadable</span>
           <span>{source.parse_errors.length.toLocaleString()} parse errors</span>
+          {#if source.cache}
+            <span>
+              {source.cache.hits.toLocaleString()} cache hits,
+              {source.cache.misses.toLocaleString()} misses
+            </span>
+          {/if}
         </div>
       </div>
 
@@ -160,14 +190,83 @@
             </Link>
           {/each}
         </div>
+
+        <div
+          class="border-border flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div class="text-muted-foreground text-sm">
+            Page {pagination.page.toLocaleString()} of
+            {Math.max(pagination.total_pages, 1).toLocaleString()}
+            <span class="ml-2">
+              {pagination.total_count.toLocaleString()} sessions
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <Button
+              href={pagePath(pagination.page - 1)}
+              variant="outline"
+              size="sm"
+              disabled={!pagination.has_previous_page}
+            >
+              <ChevronLeft class="size-4" />
+              Previous
+            </Button>
+            <Button
+              href={pagePath(pagination.page + 1)}
+              variant="outline"
+              size="sm"
+              disabled={!pagination.has_next_page}
+            >
+              Next
+              <ChevronRight class="size-4" />
+            </Button>
+          </div>
+        </div>
       {:else}
         <div class="p-8 text-center">
           <Terminal class="text-muted-foreground mx-auto size-8" />
-          <h2 class="mt-3 text-sm font-medium">No sessions found</h2>
+          <h2 class="mt-3 text-sm font-medium">
+            {pagination.total_count > 0 ? "No sessions on this page" : "No sessions found"}
+          </h2>
           <p class="text-muted-foreground mx-auto mt-2 max-w-lg text-sm">
-            The configured sessions directory does not contain readable Codex JSONL files.
+            {pagination.total_count > 0
+              ? "Use the pagination controls to return to a populated page."
+              : "The configured sessions directory does not contain readable Codex JSONL files."}
           </p>
         </div>
+        {#if pagination.total_count > 0}
+          <div
+            class="border-border flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div class="text-muted-foreground text-sm">
+              Page {pagination.page.toLocaleString()} of
+              {Math.max(pagination.total_pages, 1).toLocaleString()}
+              <span class="ml-2">
+                {pagination.total_count.toLocaleString()} sessions
+              </span>
+            </div>
+            <div class="flex items-center gap-2">
+              <Button
+                href={pagePath(pagination.page - 1)}
+                variant="outline"
+                size="sm"
+                disabled={!pagination.has_previous_page}
+              >
+                <ChevronLeft class="size-4" />
+                Previous
+              </Button>
+              <Button
+                href={pagePath(pagination.page + 1)}
+                variant="outline"
+                size="sm"
+                disabled={!pagination.has_next_page}
+              >
+                Next
+                <ChevronRight class="size-4" />
+              </Button>
+            </div>
+          </div>
+        {/if}
       {/if}
     </section>
   </div>
