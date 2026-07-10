@@ -14,6 +14,7 @@ class User < ApplicationRecord
 
   has_many :sessions, dependent: :destroy
   has_many :workspaces, dependent: :destroy
+  has_one :default_workspace, -> { where(default_workspace: true) }, class_name: "Workspace", inverse_of: :user
 
   validates :name, presence: true
   validates :email, presence: true, uniqueness: true, format: {with: URI::MailTo::EMAIL_REGEXP}
@@ -27,5 +28,13 @@ class User < ApplicationRecord
 
   after_update if: :password_digest_previously_changed? do
     sessions.where.not(id: Current.session).delete_all
+  end
+
+  after_create :ensure_default_workspace!
+
+  def ensure_default_workspace!
+    workspaces.default_workspace.first ||
+      workspaces.order(:created_at, :id).first&.tap { |workspace| workspace.update!(default_workspace: true) } ||
+      workspaces.create!(name: "Default workspace", default_workspace: true)
   end
 end

@@ -76,7 +76,7 @@ class EnvironmentVariablesController < InertiaController
   end
 
   def redirect_path
-    workspace_path(@workspace, runtime_instance_id: selected_runtime_instance_id)
+    selected_runtime_instance_id ? agent_path(selected_runtime_instance_id) : dashboard_path
   end
 
   def selected_runtime_instance_id

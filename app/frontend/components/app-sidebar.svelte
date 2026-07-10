@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Link } from "@inertiajs/svelte"
-  import { Boxes, LayoutGrid } from "@lucide/svelte"
+  import { Bot, LayoutGrid, MonitorCheck } from "@lucide/svelte"
 
   import NavMain from "@/components/nav-main.svelte"
   import NavUser from "@/components/nav-user.svelte"
@@ -13,7 +13,11 @@
     SidebarMenuButton,
     SidebarMenuItem,
   } from "@/components/ui/sidebar"
-  import { dashboardPath, workspacesPath } from "@/routes"
+  import {
+    dashboardPath,
+    newAgentPath,
+    systemCheckPath,
+  } from "@/routes"
   import { type NavItem } from "@/types"
 
   import AppLogo from "./app-logo.svelte"
@@ -25,9 +29,14 @@
       icon: LayoutGrid,
     },
     {
-      title: "Workspaces",
-      href: workspacesPath(),
-      icon: Boxes,
+      title: "Add Agent",
+      href: newAgentPath(),
+      icon: Bot,
+    },
+    {
+      title: "System Check",
+      href: systemCheckPath(),
+      icon: MonitorCheck,
     },
   ]
 </script>

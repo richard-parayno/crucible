@@ -8,9 +8,9 @@ class AgentRunsController < InertiaController
     agent_run = @runtime_instance.agent_runs.create!(agent_run_attributes)
     RunAgentTaskJob.perform_later(agent_run)
 
-    redirect_to workspace_path(@workspace, runtime_instance_id: @runtime_instance.id), notice: "Agent run queued."
+    redirect_to agent_path(@runtime_instance), notice: "Agent run queued."
   rescue ActiveRecord::RecordInvalid => e
-    redirect_to workspace_path(@workspace, runtime_instance_id: @runtime_instance&.id), inertia: {errors: e.record.errors}
+    redirect_to agent_path(@runtime_instance), inertia: {errors: e.record.errors}
   end
 
   private

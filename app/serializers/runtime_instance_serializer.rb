@@ -25,6 +25,20 @@ class RuntimeInstanceSerializer
       }
     end
 
+    def dashboard_agent(runtime_instance)
+      {
+        id: runtime_instance.id,
+        name: runtime_instance.name,
+        status: runtime_instance.status,
+        runtime_kind: runtime_instance.runtime_definition.kind,
+        runtime_name: runtime_instance.runtime_definition.name,
+        container_name: runtime_instance.container_name,
+        status_message: runtime_instance.status_message,
+        started_at: runtime_instance.started_at&.iso8601,
+        workspace: runtime_instance.workspace.slice(:id, :name)
+      }
+    end
+
     def instance(runtime_instance)
       {
         id: runtime_instance.id,
