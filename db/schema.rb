@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_09_151605) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_09_162605) do
   create_table "agent_runs", force: :cascade do |t|
     t.text "command", null: false
     t.datetime "created_at", null: false
@@ -120,10 +120,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_09_151605) do
 
   create_table "workspaces", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.boolean "default_workspace", default: false, null: false
     t.text "description"
     t.string "name"
     t.datetime "updated_at", null: false
     t.integer "user_id", null: false
+    t.index ["user_id"], name: "index_workspaces_on_user_default_workspace", unique: true, where: "default_workspace"
     t.index ["user_id"], name: "index_workspaces_on_user_id"
   end
 

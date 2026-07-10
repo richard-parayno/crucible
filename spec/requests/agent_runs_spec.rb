@@ -20,7 +20,7 @@ RSpec.describe "AgentRuns", type: :request do
     end.to change(AgentRun, :count).by(1)
 
     agent_run = runtime_instance.agent_runs.sole
-    expect(response).to redirect_to(workspace_path(workspace, runtime_instance_id: runtime_instance.id))
+    expect(response).to redirect_to(agent_path(runtime_instance))
     expect(agent_run).to have_attributes(
       prompt: "Check the app",
       command: "bin/rails about",
@@ -45,7 +45,7 @@ RSpec.describe "AgentRuns", type: :request do
       end.not_to have_enqueued_job(RunAgentTaskJob)
     end.not_to change(AgentRun, :count)
 
-    expect(response).to redirect_to(workspace_path(workspace, runtime_instance_id: runtime_instance.id))
+    expect(response).to redirect_to(agent_path(runtime_instance))
   end
 
   it "does not create runs for another user's runtime instance" do

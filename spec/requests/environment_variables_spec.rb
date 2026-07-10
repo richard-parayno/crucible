@@ -19,7 +19,7 @@ RSpec.describe "Environment variables", type: :request do
       sensitive: "1"
     }
 
-    expect(response).to redirect_to(workspace_path(workspace))
+    expect(response).to redirect_to(dashboard_path)
     expect(EnvironmentVariable.system_variables.last).to have_attributes(
       key: "GLOBAL_TOKEN",
       value: "system-secret",
@@ -35,7 +35,7 @@ RSpec.describe "Environment variables", type: :request do
       sensitive: "1"
     }
 
-    expect(response).to redirect_to(workspace_path(workspace, runtime_instance_id: runtime_instance.id))
+    expect(response).to redirect_to(agent_path(runtime_instance))
     expect(runtime_instance.environment_variables.last).to have_attributes(
       scope: EnvironmentVariable::RUNTIME_INSTANCE_SCOPE,
       key: "RUNTIME_TOKEN",
@@ -53,7 +53,7 @@ RSpec.describe "Environment variables", type: :request do
       sensitive: "0"
     }
 
-    expect(response).to redirect_to(workspace_path(workspace, runtime_instance_id: runtime_instance.id))
+    expect(response).to redirect_to(agent_path(runtime_instance))
     expect(environment_variable.reload).to have_attributes(key: "NEW_KEY", value: "new-value", sensitive: false)
 
     patch workspace_runtime_instance_environment_variable_path(workspace, runtime_instance, environment_variable), params: {

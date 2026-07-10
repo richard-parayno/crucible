@@ -15,11 +15,13 @@ Rails.application.routes.draw do
   end
 
   get :dashboard, to: "dashboard#index"
+  resource :system_check, only: %i[show]
+  resources :agents, only: %i[new create show]
 
-  resources :workspaces, only: %i[index show create] do
+  resources :workspaces, only: [] do
     resources :environment_variables, only: %i[create update destroy]
 
-    resources :runtime_instances, only: %i[create] do
+    resources :runtime_instances, only: [] do
       resources :agent_runs, only: %i[create]
       resources :environment_variables, only: %i[create update destroy]
 
