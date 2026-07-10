@@ -11,12 +11,31 @@ RSpec.describe "Agents", type: :request do
 
   it "renders the agent index with detected system runtimes and user's manual runtimes" do
     lookup = instance_double(ExecutablePathLookup)
+    process_inventory = instance_double(HostAgentProcessInventory)
     allow(ExecutablePathLookup).to receive(:new).and_return(lookup)
+    allow(HostAgentProcessInventory).to receive(:new).and_return(process_inventory)
     allow(lookup).to receive(:call).with("codex").and_return("/usr/local/bin/codex")
     allow(lookup).to receive(:call).with("claude").and_return(nil)
     allow(lookup).to receive(:call).with("opencode").and_return("/usr/local/bin/opencode")
     allow(lookup).to receive(:call).with("openclaw").and_return(nil)
     allow(lookup).to receive(:call).with("hermes-agent").and_return(nil)
+    allow(process_inventory).to receive(:call).and_return(
+      [
+        HostAgentProcessInventory::ProcessRow.new(
+          pid: 1234,
+          user: "richard",
+          command: "codex --ask",
+          comm: "codex",
+          executable: "/usr/local/bin/codex",
+          cwd: "/home/richard/personal-dev/crucible",
+          started_at: 20.minutes.ago,
+          age_seconds: 1200,
+          agent_kind: "codex",
+          agent_name: "Codex",
+          importable: true
+        )
+      ]
+    )
 
     runtime_instance = create(
       :runtime_instance,
@@ -47,7 +66,7 @@ RSpec.describe "Agents", type: :request do
       include(
         "id" => "detected:codex",
         "row_id" => "detected:codex",
-        "source" => "auto_detected",
+        "source" => "installed_binary",
         "kind" => "codex",
         "name" => "Codex",
         "working_directory" => Rails.root.to_s,
@@ -64,7 +83,7 @@ RSpec.describe "Agents", type: :request do
       include(
         "id" => "detected:opencode",
         "row_id" => "detected:opencode",
-        "source" => "auto_detected",
+        "source" => "installed_binary",
         "kind" => "opencode",
         "name" => "OpenCode",
         "working_directory" => Rails.root.to_s,
@@ -80,11 +99,41 @@ RSpec.describe "Agents", type: :request do
       )
     )
 
+    host_process = inertia.props.fetch("host_processes").sole
+    expect(host_process).to include(
+      "id" => "host_process:1234",
+      "row_id" => "host_process:1234",
+      "source" => "external_process",
+      "kind" => "codex",
+      "name" => "Codex",
+      "pid" => 1234,
+      "user" => "richard",
+      "command" => "codex --ask",
+      "working_directory" => "/home/richard/personal-dev/crucible",
+      "executable_command" => "codex",
+      "executable_path" => "/usr/local/bin/codex",
+      "status" => "running",
+      "age_seconds" => 1200,
+      "importable" => true,
+      "agent_path" => nil,
+      "runtime_definition_id" => be_present,
+      "executable" => {
+        "command" => "codex",
+        "path" => "/usr/local/bin/codex",
+        "status" => "running"
+      }
+    )
+    expect(host_process.fetch("import_path")).to include(
+      "/agents/new",
+      "kind=codex",
+      "template_mode=host_binary"
+    )
+
     manual_runtime = inertia.props.fetch("manual_runtimes").sole
     expect(manual_runtime).to include(
       "id" => "runtime_instance:#{runtime_instance.id}",
       "row_id" => "runtime_instance:#{runtime_instance.id}",
-      "source" => "manual",
+      "source" => "crucible_managed",
       "kind" => "codex",
       "name" => "Codex project runtime",
       "status" => "running",
@@ -111,7 +160,35 @@ RSpec.describe "Agents", type: :request do
     expect(inertia.props.fetch("agent_runtimes").pluck("id")).to contain_exactly(
       "detected:codex",
       "detected:opencode",
+      "host_process:1234",
       "runtime_instance:#{runtime_instance.id}"
+    )
+  end
+
+  it "prefills the new agent page from import query params" do
+    runtime_definition = create(:runtime_definition, kind: "codex", name: "Codex")
+
+    get new_agent_path(
+      workspace_id: workspace.id,
+      runtime_definition_id: runtime_definition.id,
+      kind: "codex",
+      name: "Codex import",
+      template_mode: "host_binary",
+      host_binary_path: "/usr/local/bin/codex",
+      command: "codex --ask",
+      working_directory: "/workspaces/crucible"
+    )
+
+    expect(response).to have_http_status(:success)
+    expect(inertia).to render_component("agents/new")
+    expect(inertia.props.fetch("import_defaults")).to include(
+      "runtime_definition_id" => runtime_definition.id.to_s,
+      "kind" => "codex",
+      "name" => "Codex import",
+      "template_mode" => "host_binary",
+      "host_binary_path" => "/usr/local/bin/codex",
+      "command" => "codex --ask",
+      "working_directory" => "/workspaces/crucible"
     )
   end
 
@@ -155,8 +232,13 @@ RSpec.describe "Agents", type: :request do
       workspace_id: workspace.id,
       runtime_definition_id: runtime_definition.id,
       name: "Local custom",
-      config: {"command" => "echo ready"}.to_json,
-      env: {"TOKEN" => "redacted"}.to_json
+      template_mode: "custom",
+      container_image: "alpine:latest",
+      command: "echo ready",
+      config_volume_enabled: "1",
+      config_volume_name: "crucible_local_custom_config",
+      config_mount_path: "/root/.config/custom-agent",
+      env_lines: "TOKEN=redacted\nCRUCIBLE_MESSAGE=hello"
     }
 
     runtime_instance = workspace.runtime_instances.first
@@ -168,17 +250,25 @@ RSpec.describe "Agents", type: :request do
       container_runtime: "docker",
       status: "pending"
     )
-    expect(runtime_instance.config).to eq("command" => "echo ready")
+    expect(runtime_instance.config).to include(
+      "template_mode" => "custom",
+      "container_image" => "alpine:latest",
+      "command" => "echo ready",
+      "config_volume_enabled" => true,
+      "config_volume_name" => "crucible_local_custom_config",
+      "config_mount_path" => "/root/.config/custom-agent"
+    )
+    expect(runtime_instance.env).to eq("TOKEN" => "redacted", "CRUCIBLE_MESSAGE" => "hello")
     expect(StartRuntimeInstanceJob).to have_been_enqueued.with(runtime_instance)
   end
 
-  it "redirects back to the new agent page when config JSON is invalid" do
+  it "redirects back to the new agent page when environment input is invalid" do
     expect do
       expect do
         post agents_path, params: {
           workspace_id: workspace.id,
           runtime_definition_id: runtime_definition.id,
-          config: "{"
+          env_lines: "not valid"
         }
       end.not_to have_enqueued_job(StartRuntimeInstanceJob)
     end.not_to change { workspace.runtime_instances.count }

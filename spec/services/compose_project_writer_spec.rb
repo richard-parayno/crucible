@@ -69,6 +69,12 @@ RSpec.describe ComposeProjectWriter do
             source: "/usr/local/bin/codex",
             target: "/opt/crucible/host-binaries/codex",
             read_only: true
+          },
+          {
+            type: "volume",
+            source: "crucible_runtime_codex_config",
+            target: "/root/.codex",
+            read_only: false
           }
         ]
       )
@@ -88,8 +94,15 @@ RSpec.describe ComposeProjectWriter do
           "source" => "/usr/local/bin/codex",
           "target" => "/opt/crucible/host-binaries/codex",
           "read_only" => true
+        },
+        {
+          "type" => "volume",
+          "source" => "crucible_runtime_codex_config",
+          "target" => "/root/.codex",
+          "read_only" => false
         }
       ])
+      expect(compose.fetch("volumes")).to eq("crucible_runtime_codex_config" => {})
       expect(agent.fetch("labels")).to include(
         "crucible.runtime_kind" => "codex",
         "crucible.template_mode" => "host_binary",

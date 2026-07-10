@@ -27,6 +27,12 @@ See also:
    ```
 3. Open http://localhost:3000
 
+## Self-host on a VPS
+
+Crucible includes a curl-friendly Docker Compose installer for a single Linux VPS. The installer expects Docker and Docker Compose to already be installed, prefers Tailscale access when available, generates the setup token for the first administrator, and mounts the Docker socket for the MVP control plane.
+
+See [docs/self-host.md](docs/self-host.md) for the install flow and configuration options.
+
 ## Enabling SSR
 
 This starter kit comes with optional SSR support. To enable it, follow these steps:

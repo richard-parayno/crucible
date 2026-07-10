@@ -32,6 +32,7 @@
     description?: string
     container_image?: string
     default_command?: string
+    config_mount_path?: string
   }
 
   interface WorkspaceSummary {
@@ -41,14 +42,28 @@
   interface Props {
     workspace: WorkspaceSummary
     runtime_definitions: RuntimeDefinition[]
+    import_defaults?: ImportDefaults
   }
 
-  let { workspace, runtime_definitions: runtimeDefinitions }: Props = $props()
+  interface ImportDefaults {
+    runtime_definition_id?: string | number
+    kind?: string
+    name?: string
+    template_mode?: string
+    host_binary_path?: string
+    command?: string
+    working_directory?: string
+  }
 
-  let selectedRuntimeDefinitionId = $state(
-    runtimeDefinitions[0]?.id?.toString() ?? "",
-  )
-  let selectedTemplateMode = $state(defaultTemplateMode(runtimeDefinitions[0]))
+  let {
+    workspace,
+    runtime_definitions: runtimeDefinitions,
+    import_defaults: importDefaults = {},
+  }: Props = $props()
+
+  let selectedRuntimeDefinitionId = $state("")
+  let selectedTemplateMode = $state("managed_image")
+  let initializedFromImportDefaults = $state(false)
 
   const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -56,6 +71,8 @@
       href: newAgentPath(),
     },
   ]
+
+  const envPlaceholder = "OPENAI_API_KEY=...\nANTHROPIC_API_KEY=..."
 
   const selectedRuntimeDefinition = $derived(
     runtimeDefinitions.find(
@@ -74,26 +91,44 @@
     ) ?? selectedRuntimeDefinitionTemplates[0],
   )
 
-  const configTemplate = $derived(
-    JSON.stringify(
-      {
-        template_mode: selectedTemplateMode,
-        container_image:
-          selectedRuntimeTemplate?.container_image ??
-          selectedRuntimeDefinition?.container_image ??
-          "",
-        command:
-          selectedRuntimeTemplate?.default_command ??
-          selectedRuntimeDefinition?.default_command ??
-          "",
-        ...(selectedTemplateMode === "host_binary"
-          ? { host_binary_path: "" }
-          : {}),
-      },
-      null,
-      2,
-    ),
+  $effect.pre(() => {
+    if (initializedFromImportDefaults) return
+
+    const runtimeDefinition = initialRuntimeDefinition()
+    selectedRuntimeDefinitionId = runtimeDefinition?.id?.toString() ?? ""
+    selectedTemplateMode =
+      importDefaults.template_mode ?? defaultTemplateMode(runtimeDefinition)
+    initializedFromImportDefaults = true
+  })
+
+  const selectedContainerImage = $derived(
+    selectedRuntimeTemplate?.container_image ??
+      selectedRuntimeDefinition?.container_image ??
+      "",
   )
+
+  const selectedCommand = $derived(
+    importDefaults.command ??
+      selectedRuntimeTemplate?.default_command ??
+      selectedRuntimeDefinition?.default_command ??
+      "",
+  )
+
+  const selectedConfigMountPath = $derived(
+    selectedRuntimeTemplate?.config_mount_path ??
+      "/root/.config/crucible-agent",
+  )
+
+  function initialRuntimeDefinition() {
+    return (
+      runtimeDefinitions.find(
+        (runtimeDefinition) =>
+          runtimeDefinition.id.toString() ===
+            importDefaults.runtime_definition_id?.toString() ||
+          runtimeDefinition.kind === importDefaults.kind,
+      ) ?? runtimeDefinitions[0]
+    )
+  }
 
   function defaultTemplateMode(runtimeDefinition?: RuntimeDefinition) {
     return (
@@ -132,15 +167,22 @@
       </div>
     </section>
 
-    <section class="border-border max-w-2xl rounded-lg border p-4">
+    <section class="border-border max-w-4xl rounded-lg border p-4">
       <HeadingSmall
         title="Agent template"
         description="Choose the agent runtime and install mode."
       />
 
-      <Form method="post" action={agentsPath()} class="mt-5 space-y-4">
+      <Form method="post" action={agentsPath()} class="mt-5 space-y-5">
         {#snippet children({ errors, processing }: FormComponentSlotProps)}
           <input type="hidden" name="workspace_id" value={workspace.id} />
+          {#if importDefaults.working_directory}
+            <input
+              type="hidden"
+              name="working_directory"
+              value={importDefaults.working_directory}
+            />
+          {/if}
 
           <div class="grid gap-2">
             <Label for="runtime_definition_id">Agent</Label>
@@ -164,6 +206,7 @@
             <Input
               id="name"
               name="name"
+              value={importDefaults.name ?? ""}
               placeholder={selectedRuntimeDefinition?.name ?? "Agent"}
             />
             <InputError messages={errors.name} />
@@ -174,6 +217,7 @@
               <Label for="template_mode">Install mode</Label>
               <select
                 id="template_mode"
+                name="template_mode"
                 bind:value={selectedTemplateMode}
                 class="border-input bg-background ring-offset-background focus-visible:ring-ring h-9 rounded-md border px-3 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
               >
@@ -194,27 +238,94 @@
               {selectedRuntimeDefinition?.name ?? "Agent"}
             </Badge>
             <Badge variant="outline">{selectedTemplateMode}</Badge>
+            <Badge variant="outline">docker compose</Badge>
+          </div>
+
+          <div
+            class="grid gap-4"
+            style="grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));"
+          >
+            <div class="grid gap-2">
+              <Label for="container_image">Container image</Label>
+              <Input
+                id="container_image"
+                name="container_image"
+                value={selectedContainerImage}
+                placeholder="alpine:latest"
+              />
+            </div>
+
+            <div class="grid gap-2">
+              <Label for="host_binary_path">Host binary path</Label>
+              <Input
+                id="host_binary_path"
+                name="host_binary_path"
+                value={importDefaults.host_binary_path ?? ""}
+                placeholder="/usr/local/bin/codex"
+                disabled={selectedTemplateMode !== "host_binary"}
+              />
+              {#if selectedTemplateMode === "host_binary"}
+                <p class="text-muted-foreground text-xs">
+                  The binary is mounted read-only into the Compose service.
+                </p>
+              {/if}
+            </div>
           </div>
 
           <div class="grid gap-2">
-            <Label for="config">Config JSON</Label>
+            <Label for="command">Command</Label>
             <textarea
-              id="config"
-              name="config"
-              rows="7"
-              class="border-input bg-background ring-offset-background focus-visible:ring-ring min-h-32 rounded-md border px-3 py-2 font-mono text-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              value={configTemplate}></textarea>
-            <InputError messages={errors.config} />
-          </div>
-
-          <div class="grid gap-2">
-            <Label for="env">Environment JSON</Label>
-            <textarea
-              id="env"
-              name="env"
+              id="command"
+              name="command"
               rows="4"
+              class="border-input bg-background ring-offset-background focus-visible:ring-ring min-h-24 rounded-md border px-3 py-2 font-mono text-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+              value={selectedCommand}></textarea>
+          </div>
+
+          <div
+            class="border-border grid gap-4 rounded-md border p-3"
+            style="grid-template-columns: repeat(auto-fit, minmax(min(16rem, 100%), 1fr));"
+          >
+            <input type="hidden" name="config_volume_enabled" value="0" />
+            <label class="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                name="config_volume_enabled"
+                value="1"
+                checked
+                class="border-input size-4 rounded"
+              />
+              Config volume
+            </label>
+
+            <div class="grid gap-2">
+              <Label for="config_mount_path">Mount path</Label>
+              <Input
+                id="config_mount_path"
+                name="config_mount_path"
+                value={selectedConfigMountPath}
+              />
+            </div>
+
+            <div class="grid gap-2">
+              <Label for="config_volume_name">Volume name</Label>
+              <Input
+                id="config_volume_name"
+                name="config_volume_name"
+                placeholder="Generated per runtime"
+              />
+            </div>
+          </div>
+
+          <div class="grid gap-2">
+            <Label for="env_lines">Environment variables</Label>
+            <textarea
+              id="env_lines"
+              name="env_lines"
+              rows="5"
               class="border-input bg-background ring-offset-background focus-visible:ring-ring rounded-md border px-3 py-2 font-mono text-xs focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
-              value={"{}"}></textarea>
+              placeholder={envPlaceholder}></textarea>
+            <InputError messages={errors.config} />
           </div>
 
           <Button type="submit" disabled={processing}>

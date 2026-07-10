@@ -47,7 +47,10 @@ class ComposeProjectWriter
     service["labels"] = adapter_spec.labels if adapter_spec.labels.present?
     service["volumes"] = volume_payloads(adapter_spec.volumes) if adapter_spec.volumes.present?
 
-    {"services" => {SERVICE_NAME => service}}
+    payload = {"services" => {SERVICE_NAME => service}}
+    named_volumes = named_volume_payloads(adapter_spec.volumes)
+    payload["volumes"] = named_volumes if named_volumes.present?
+    payload
   end
 
   def volume_payloads(volumes)
@@ -59,6 +62,13 @@ class ComposeProjectWriter
         "read_only" => volume.fetch(:read_only, false)
       }
     end
+  end
+
+  def named_volume_payloads(volumes)
+    volumes
+      .select { |volume| volume.fetch(:type, "bind") == "volume" }
+      .index_with { |_volume| {} }
+      .transform_keys { |volume| volume.fetch(:source).to_s }
   end
 
   def env_references(env)

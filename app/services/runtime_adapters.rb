@@ -19,6 +19,10 @@ module RuntimeAdapters
     case kind
     when "codex"
       Codex.new
+    when "claude"
+      Claude.new
+    when "opencode"
+      OpenCode.new
     when "openclaw"
       OpenClaw.new
     when "hermes"
@@ -68,7 +72,8 @@ module RuntimeAdapters
         labels: base_labels(runtime_instance).merge(
           "crucible.template_mode" => template.fetch(:mode)
         ),
-        workdir: "/"
+        workdir: "/",
+        volumes: config_volume_mounts(runtime_instance, template, config)
       )
     end
 
@@ -97,7 +102,7 @@ module RuntimeAdapters
             target: target_path,
             read_only: true
           }
-        ]
+        ] + config_volume_mounts(runtime_instance, template, config)
       )
     end
 
@@ -148,6 +153,30 @@ module RuntimeAdapters
       configured_command.present? ? "#{escaped_target} #{configured_command}" : command
     end
 
+    def config_volume_mounts(runtime_instance, template, config)
+      config_volume_enabled = config.fetch("config_volume_enabled", true)
+      return [] if config_volume_enabled == false || config_volume_enabled.to_s == "0"
+
+      target_path = config["config_mount_path"].presence || template[:config_mount_path].presence
+      return [] unless target_path.present?
+
+      [
+        {
+          type: "volume",
+          source: config["config_volume_name"].presence || default_config_volume_name(runtime_instance),
+          target: target_path.to_s,
+          read_only: false
+        }
+      ]
+    end
+
+    def default_config_volume_name(runtime_instance)
+      kind = runtime_instance.runtime_definition.kind.to_s.parameterize(separator: "_").presence || "runtime"
+      runtime_id = runtime_instance.id.presence || "new"
+
+      "crucible_runtime_#{runtime_id}_#{kind}_config"
+    end
+
     def base_labels(runtime_instance)
       runtime_definition = runtime_instance.runtime_definition
 
@@ -164,6 +193,12 @@ module RuntimeAdapters
   end
 
   class Codex < Base
+  end
+
+  class Claude < Base
+  end
+
+  class OpenCode < Base
   end
 
   class Hermes < Base

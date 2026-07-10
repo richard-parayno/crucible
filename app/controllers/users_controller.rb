@@ -3,9 +3,12 @@
 class UsersController < InertiaController
   skip_before_action :authenticate, only: %i[new create]
   before_action :require_no_authentication, only: %i[new create]
+  before_action :require_registration_open, only: %i[new create]
+  before_action :require_setup_token, only: %i[new create]
 
   def new
     @user = User.new
+    render inertia: {setup_token: params[:setup_token].to_s}
   end
 
   def create
@@ -34,6 +37,18 @@ class UsersController < InertiaController
   end
 
   private
+
+  def require_registration_open
+    return if RegistrationGate.open?
+
+    redirect_to sign_in_path, alert: "Registration is closed. Sign in with the existing administrator account."
+  end
+
+  def require_setup_token
+    return if RegistrationGate.allowed_setup_token?(params[:setup_token])
+
+    redirect_to sign_in_path, alert: "Use the setup URL from the Crucible installer to create the first administrator account."
+  end
 
   def user_params
     params.permit(:email, :name, :password, :password_confirmation)

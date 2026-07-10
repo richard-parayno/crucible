@@ -7,10 +7,14 @@
     Box,
     Clock,
     Container,
+    FileText,
+    KeyRound,
+    ListChecks,
     Play,
     RefreshCw,
     Square,
     Stethoscope,
+    Terminal,
   } from "@lucide/svelte"
 
   import { Badge } from "@/components/ui/badge"
@@ -49,7 +53,13 @@
     runtime_name: string
     status_message?: string
     started_at?: string
+    stopped_at?: string
     last_heartbeat_at?: string
+    config: Record<string, string | boolean | null>
+    runtime_env: RuntimeEnv[]
+    environment_variables: EnvironmentVariable[]
+    recent_agent_runs: AgentRun[]
+    recent_events: RuntimeEvent[]
     workspace: WorkspaceSummary
   }
 
@@ -59,6 +69,42 @@
     env_path: string
     project_name: string
     service_name: string
+    commands: Record<string, string[]>
+  }
+
+  interface RuntimeEnv {
+    key: string
+    value: string
+    source: string
+  }
+
+  interface EnvironmentVariable {
+    id: number
+    key: string
+    value: string
+    scope: string
+    sensitive: boolean
+    enabled: boolean
+  }
+
+  interface AgentRun {
+    id: number
+    command: string
+    status: string
+    exit_code?: number
+    output?: string
+    status_message?: string
+    started_at?: string
+    finished_at?: string
+    created_at: string
+  }
+
+  interface RuntimeEvent {
+    id: number
+    level: string
+    message: string
+    metadata: Record<string, unknown>
+    occurred_at: string
   }
 
   interface Props {
@@ -79,6 +125,15 @@
   ] satisfies BreadcrumbItem[])
 
   const composeProject = $derived(agent.compose_project)
+  const configEntries = $derived(Object.entries(agent.config ?? {}))
+  const environmentRows = $derived([
+    ...(agent.runtime_env ?? []),
+    ...(agent.environment_variables ?? []).map((variable) => ({
+      key: variable.key,
+      value: variable.value,
+      source: variable.scope,
+    })),
+  ])
 
   function statusTone(status: string) {
     if (status === "running")
@@ -99,6 +154,10 @@
       dateStyle: "medium",
       timeStyle: "short",
     }).format(new Date(value))
+  }
+
+  function commandText(command: string[]) {
+    return command.join(" ")
   }
 </script>
 
@@ -133,7 +192,9 @@
     </section>
 
     <section class="border-border rounded-lg border p-4">
-      <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div
+        class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between"
+      >
         <div>
           <h2 class="text-sm font-medium">Runtime Controls</h2>
           <p class="text-muted-foreground mt-1 text-sm">
@@ -280,6 +341,10 @@
               {formatDateTime(agent.last_heartbeat_at)}
             </div>
           </div>
+          <div>
+            <div class="text-muted-foreground">Stopped</div>
+            <div class="font-medium">{formatDateTime(agent.stopped_at)}</div>
+          </div>
         </CardContent>
       </Card>
     </section>
@@ -320,12 +385,171 @@
             <dt class="text-muted-foreground">Compose file</dt>
             <dd class="break-all font-medium">{composeProject.compose_path}</dd>
           </div>
+          <div>
+            <dt class="text-muted-foreground">Env file</dt>
+            <dd class="break-all font-medium">{composeProject.env_path}</dd>
+          </div>
         </dl>
+
+        <div class="mt-5">
+          <div class="flex items-center gap-2">
+            <Terminal class="size-4" />
+            <h3 class="text-sm font-medium">Docker Compose Commands</h3>
+          </div>
+          <div class="mt-3 grid gap-2">
+            {#each Object.entries(composeProject.commands) as [name, command] (name)}
+              <div class="grid gap-1 text-sm">
+                <div class="text-muted-foreground capitalize">
+                  {name.replaceAll("_", " ")}
+                </div>
+                <code
+                  class="bg-muted text-muted-foreground block overflow-x-auto rounded-md px-3 py-2 text-xs"
+                >
+                  {commandText(command)}
+                </code>
+              </div>
+            {/each}
+          </div>
+        </div>
       {:else}
         <p class="text-muted-foreground mt-3 text-sm">
           Compose metadata has not been prepared for this agent yet.
         </p>
       {/if}
+    </section>
+
+    <section
+      class="grid gap-4"
+      style="grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));"
+    >
+      <section class="border-border rounded-lg border p-4">
+        <div class="flex items-center gap-2">
+          <FileText class="size-4" />
+          <h2 class="text-sm font-medium">Runtime Config</h2>
+        </div>
+
+        {#if configEntries.length > 0}
+          <dl class="mt-4 grid gap-3 text-sm">
+            {#each configEntries as [key, value] (key)}
+              <div>
+                <dt class="text-muted-foreground">{key}</dt>
+                <dd class="break-all font-medium">{value?.toString()}</dd>
+              </div>
+            {/each}
+          </dl>
+        {:else}
+          <p class="text-muted-foreground mt-3 text-sm">
+            No runtime config has been recorded.
+          </p>
+        {/if}
+      </section>
+
+      <section class="border-border rounded-lg border p-4">
+        <div class="flex items-center gap-2">
+          <KeyRound class="size-4" />
+          <h2 class="text-sm font-medium">Environment</h2>
+        </div>
+
+        {#if environmentRows.length > 0}
+          <div class="mt-4 overflow-x-auto">
+            <table class="w-full min-w-96 text-left text-sm">
+              <thead class="text-muted-foreground border-b text-xs">
+                <tr>
+                  <th class="py-2 pr-3 font-medium">Key</th>
+                  <th class="py-2 pr-3 font-medium">Value</th>
+                  <th class="py-2 font-medium">Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each environmentRows as row (row.source + row.key)}
+                  <tr class="border-b last:border-0">
+                    <td class="py-2 pr-3 font-medium">{row.key}</td>
+                    <td class="py-2 pr-3 font-mono text-xs">{row.value}</td>
+                    <td class="text-muted-foreground py-2">{row.source}</td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {:else}
+          <p class="text-muted-foreground mt-3 text-sm">
+            No runtime-specific environment variables are configured.
+          </p>
+        {/if}
+      </section>
+    </section>
+
+    <section
+      class="grid gap-4"
+      style="grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr));"
+    >
+      <section class="border-border rounded-lg border p-4">
+        <div class="flex items-center gap-2">
+          <ListChecks class="size-4" />
+          <h2 class="text-sm font-medium">Recent Command Runs</h2>
+        </div>
+
+        {#if agent.recent_agent_runs.length > 0}
+          <div class="mt-4 space-y-3">
+            {#each agent.recent_agent_runs as run (run.id)}
+              <article class="border-border rounded-md border p-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <code class="font-mono text-xs">{run.command}</code>
+                  <Badge variant="outline">{run.status}</Badge>
+                </div>
+                <div class="text-muted-foreground mt-2 text-xs">
+                  {formatDateTime(
+                    run.finished_at ?? run.started_at ?? run.created_at,
+                  )}
+                  {#if run.exit_code !== undefined && run.exit_code !== null}
+                    · exit {run.exit_code}
+                  {/if}
+                </div>
+                {#if run.status_message}
+                  <p class="text-muted-foreground mt-2 text-sm">
+                    {run.status_message}
+                  </p>
+                {/if}
+                {#if run.output}
+                  <pre
+                    class="bg-muted text-muted-foreground mt-2 max-h-40 overflow-auto rounded-md p-2 text-xs">{run.output}</pre>
+                {/if}
+              </article>
+            {/each}
+          </div>
+        {:else}
+          <p class="text-muted-foreground mt-3 text-sm">
+            No command runs have been recorded.
+          </p>
+        {/if}
+      </section>
+
+      <section class="border-border rounded-lg border p-4">
+        <div class="flex items-center gap-2">
+          <Clock class="size-4" />
+          <h2 class="text-sm font-medium">Lifecycle Events and Logs</h2>
+        </div>
+
+        {#if agent.recent_events.length > 0}
+          <div class="mt-4 space-y-3">
+            {#each agent.recent_events as event (event.id)}
+              <article class="border-border rounded-md border p-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <Badge variant="outline">{event.level}</Badge>
+                  <time class="text-muted-foreground text-xs">
+                    {formatDateTime(event.occurred_at)}
+                  </time>
+                </div>
+                <p class="mt-2 break-words text-sm">{event.message}</p>
+              </article>
+            {/each}
+          </div>
+        {:else}
+          <p class="text-muted-foreground mt-3 text-sm">
+            No lifecycle events or Compose logs have been captured.
+          </p>
+        {/if}
+      </section>
     </section>
   </div>
 </AppLayout>

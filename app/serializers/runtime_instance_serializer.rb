@@ -54,6 +54,8 @@ class RuntimeInstanceSerializer
         started_at: runtime_instance.started_at&.iso8601,
         stopped_at: runtime_instance.stopped_at&.iso8601,
         last_heartbeat_at: runtime_instance.last_heartbeat_at&.iso8601,
+        config: safe_config(runtime_instance.config),
+        runtime_env: safe_env(runtime_instance.env),
         recent_agent_runs: runtime_instance.agent_runs.order(created_at: :desc).limit(10).map { |agent_run| AgentRunSerializer.run(agent_run) },
         environment_variables: runtime_instance.environment_variables.order(:key).map(&:safe_attributes),
         recent_events: runtime_instance.runtime_events.order(occurred_at: :desc).limit(50).reverse.map { |runtime_event| event(runtime_event) }
@@ -68,6 +70,16 @@ class RuntimeInstanceSerializer
         metadata: runtime_event.metadata,
         occurred_at: runtime_event.occurred_at.iso8601
       }
+    end
+
+    def safe_config(config)
+      (config || {}).except("env")
+    end
+
+    def safe_env(env)
+      (env || {}).keys.sort.map do |key|
+        {key:, value: EnvironmentVariable::MASKED_VALUE, source: "runtime_config"}
+      end
     end
   end
 end

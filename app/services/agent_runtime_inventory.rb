@@ -1,46 +1,54 @@
 # frozen_string_literal: true
 
 class AgentRuntimeInventory
-  DETECTABLE_RUNTIMES = [
-    {command: "codex", name: "Codex", kind: "codex"},
-    {command: "claude", name: "Claude Code", kind: "claude"},
-    {command: "opencode", name: "OpenCode", kind: "opencode"},
-    {command: "openclaw", name: "OpenClaw", kind: "openclaw"},
-    {command: "hermes-agent", name: "Hermes Agent", kind: "hermes_agent"}
-  ].freeze
-
-  def initialize(user:, path_lookup: ExecutablePathLookup.new, working_directory: Rails.root.to_s)
+  def initialize(
+    user:,
+    path_lookup: ExecutablePathLookup.new,
+    process_inventory: HostAgentProcessInventory.new,
+    working_directory: Rails.root.to_s
+  )
     @user = user
     @path_lookup = path_lookup
+    @process_inventory = process_inventory
     @working_directory = working_directory
   end
 
   def call
-    runtimes = detected_runtime_rows + manual_runtime_rows
+    runtimes = detected_runtime_rows + host_process_rows + manual_runtime_rows
 
     {
       agent_runtimes: runtimes,
       detected_runtimes: detected_runtime_rows,
+      host_processes: host_process_rows,
       manual_runtimes: manual_runtime_rows
     }
   end
 
   private
 
-  attr_reader :user, :path_lookup, :working_directory
+  attr_reader :user, :path_lookup, :process_inventory, :working_directory
 
   def detected_runtime_rows
-    @detected_runtime_rows ||= DETECTABLE_RUNTIMES.filter_map do |runtime|
-      executable_path = path_lookup.call(runtime.fetch(:command))
+    @detected_runtime_rows ||= AgentCatalog.detectable_runtimes.filter_map do |runtime|
+      command = runtime.fetch(:binary)
+      next if command.blank?
+
+      executable_path = path_lookup.call(command)
       next if executable_path.blank?
 
       AgentRuntimeRowSerializer.detected(
-        command: runtime.fetch(:command),
+        command:,
         name: runtime.fetch(:name),
         kind: runtime.fetch(:kind),
         executable_path:,
         working_directory:
       )
+    end
+  end
+
+  def host_process_rows
+    @host_process_rows ||= process_inventory.call.map do |process|
+      AgentRuntimeRowSerializer.host_process(process)
     end
   end
 

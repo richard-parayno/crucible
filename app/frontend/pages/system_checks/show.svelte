@@ -12,14 +12,31 @@
     name: string
   }
 
+  interface AgentRuntimeRow {
+    kind?: string
+    name?: string
+    status?: string
+    pid?: number
+    user?: string
+    executable_path?: string
+    working_directory?: string
+    importable?: boolean
+  }
+
   interface Props {
     host_capabilities: Record<string, unknown>
     runtime_definitions: RuntimeDefinition[]
+    installed_binaries: AgentRuntimeRow[]
+    host_processes: AgentRuntimeRow[]
+    managed_runtimes: AgentRuntimeRow[]
   }
 
   let {
     host_capabilities: hostCapabilities,
     runtime_definitions: runtimeDefinitions,
+    installed_binaries: installedBinaries,
+    host_processes: hostProcesses,
+    managed_runtimes: managedRuntimes,
   }: Props = $props()
 
   const breadcrumbs: BreadcrumbItem[] = [
@@ -54,6 +71,12 @@
       </div>
     </section>
 
-    <SetupPreflight {hostCapabilities} {runtimeDefinitions} />
+    <SetupPreflight
+      {hostCapabilities}
+      {runtimeDefinitions}
+      {installedBinaries}
+      {hostProcesses}
+      {managedRuntimes}
+    />
   </div>
 </AppLayout>

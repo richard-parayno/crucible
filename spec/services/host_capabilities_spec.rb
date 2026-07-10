@@ -48,6 +48,8 @@ RSpec.describe HostCapabilities do
         "docker" => "/usr/bin/docker",
         "tailscale" => "/usr/bin/tailscale",
         "codex" => "/home/app/bin/codex",
+        "claude" => "",
+        "opencode" => "/home/app/bin/opencode",
         "openclaw" => "",
         "hermes-agent" => "/usr/local/bin/hermes-agent"
       },
@@ -66,6 +68,8 @@ RSpec.describe HostCapabilities do
     expect(capabilities.dig(:host, :disk)).to include(status: "detected", total_bytes: 1_024_000, available_bytes: 768_000)
     expect(capabilities.dig(:host, :memory)).to include(status: "detected", total_bytes: 16_777_216_000, available_bytes: 8_388_608_000)
     expect(capabilities.dig(:agent_binaries, "codex")).to include(status: "supported", path: "/home/app/bin/codex")
+    expect(capabilities.dig(:agent_binaries, "claude")).to include(status: "unsupported", supported: false, path: nil)
+    expect(capabilities.dig(:agent_binaries, "opencode")).to include(status: "supported", path: "/home/app/bin/opencode")
     expect(capabilities.dig(:agent_binaries, "openclaw")).to include(status: "unsupported", supported: false, path: nil)
     expect(capabilities.dig(:agent_binaries, "hermes")).to include(status: "supported", path: "/usr/local/bin/hermes-agent")
   end

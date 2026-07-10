@@ -10,6 +10,12 @@
   import { Label } from "@/components/ui/label"
   import AuthBase from "@/layouts/auth-layout.svelte"
   import { signInPath, signUpPath } from "@/routes"
+
+  interface Props {
+    setup_token?: string
+  }
+
+  let { setup_token: setupToken = "" }: Props = $props()
 </script>
 
 <svelte:head>
@@ -28,6 +34,10 @@
     class="flex flex-col gap-6"
   >
     {#snippet children({ errors, processing }: FormComponentSlotProps)}
+      {#if setupToken}
+        <input type="hidden" name="setup_token" value={setupToken} />
+      {/if}
+
       <div class="grid gap-6">
         <div class="grid gap-2">
           <Label for="name">Name</Label>

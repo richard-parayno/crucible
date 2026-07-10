@@ -6,6 +6,8 @@ RSpec.describe RuntimeAdapters do
   describe ".for" do
     it "returns the adapter for a supported runtime kind" do
       expect(described_class.for("codex")).to be_a(RuntimeAdapters::Codex)
+      expect(described_class.for("claude")).to be_a(RuntimeAdapters::Claude)
+      expect(described_class.for("opencode")).to be_a(RuntimeAdapters::OpenCode)
       expect(described_class.for("openclaw")).to be_a(RuntimeAdapters::OpenClaw)
       expect(described_class.for("hermes")).to be_a(RuntimeAdapters::Hermes)
     end
@@ -31,6 +33,14 @@ RSpec.describe RuntimeAdapters do
       expect(spec.command).to eq("ruby -v")
       expect(spec.env).to eq("A" => "1", "B" => "2")
       expect(spec.labels).to include("crucible.runtime_kind" => "custom")
+      expect(spec.volumes).to eq([
+        {
+          type: "volume",
+          source: "crucible_runtime_new_custom_config",
+          target: "/root/.config/crucible-agent",
+          read_only: false
+        }
+      ])
     end
 
     it "includes resolved system and runtime environment variables" do
@@ -66,7 +76,14 @@ RSpec.describe RuntimeAdapters do
         "crucible.runtime_kind" => "codex",
         "crucible.template_mode" => "managed_image"
       )
-      expect(spec.volumes).to be_empty
+      expect(spec.volumes).to eq([
+        {
+          type: "volume",
+          source: "crucible_runtime_#{runtime_instance.id}_codex_config",
+          target: "/root/.codex",
+          read_only: false
+        }
+      ])
 
       runtime_instance.config = {
         "template_mode" => "managed_image",
@@ -78,6 +95,21 @@ RSpec.describe RuntimeAdapters do
 
       expect(override_spec.image).to eq("ghcr.io/example/codex:edge")
       expect(override_spec.command).to eq("codex serve")
+    end
+
+    it "can disable the config volume for a managed image template" do
+      runtime_instance = create(
+        :runtime_instance,
+        runtime_definition:,
+        config: {
+          "template_mode" => "managed_image",
+          "config_volume_enabled" => false
+        }
+      )
+
+      spec = described_class.new.spec_for(runtime_instance)
+
+      expect(spec.volumes).to be_empty
     end
 
     it "renders host binary mode through a read-only bind mount" do
@@ -111,6 +143,12 @@ RSpec.describe RuntimeAdapters do
           source: host_binary_path.to_s,
           target: "/opt/crucible/host-binaries/codex",
           read_only: true
+        },
+        {
+          type: "volume",
+          source: "crucible_runtime_#{runtime_instance.id}_codex_config",
+          target: "/root/.codex",
+          read_only: false
         }
       ])
     ensure
@@ -168,6 +206,54 @@ RSpec.describe RuntimeAdapters do
         RuntimeAdapters::UnavailableTemplate,
         "host_binary template mode requires docker_compose placement so the host binary can be sandboxed by Compose."
       )
+    end
+  end
+
+  describe "expanded MVP runtime adapters" do
+    [
+      {
+        kind: "claude",
+        adapter: RuntimeAdapters::Claude,
+        command: "echo 'Claude Code managed image template is not configured yet.' && tail -f /dev/null",
+        mount_path: "/root/.claude",
+        volume_suffix: "claude"
+      },
+      {
+        kind: "opencode",
+        adapter: RuntimeAdapters::OpenCode,
+        command: "echo 'OpenCode managed image template is not configured yet.' && tail -f /dev/null",
+        mount_path: "/root/.config/opencode",
+        volume_suffix: "opencode"
+      }
+    ].each do |runtime|
+      it "builds #{runtime.fetch(:kind)} managed image specs with config volume mounts" do
+        runtime_definition = create(
+          :runtime_definition,
+          **AgentCatalog.runtime_definitions.find { |definition| definition.fetch(:kind) == runtime.fetch(:kind) }
+        )
+        runtime_instance = create(
+          :runtime_instance,
+          runtime_definition:,
+          config: {"template_mode" => "managed_image"}
+        )
+
+        spec = runtime.fetch(:adapter).new.spec_for(runtime_instance)
+
+        expect(spec.image).to eq("node:24-alpine")
+        expect(spec.command).to eq(runtime.fetch(:command))
+        expect(spec.labels).to include(
+          "crucible.runtime_kind" => runtime.fetch(:kind),
+          "crucible.template_mode" => "managed_image"
+        )
+        expect(spec.volumes).to eq([
+          {
+            type: "volume",
+            source: "crucible_runtime_#{runtime_instance.id}_#{runtime.fetch(:volume_suffix)}_config",
+            target: runtime.fetch(:mount_path),
+            read_only: false
+          }
+        ])
+      end
     end
   end
 end

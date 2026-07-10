@@ -22,6 +22,17 @@
     name: string
   }
 
+  interface AgentRuntimeRow {
+    kind?: string
+    name?: string
+    status?: string
+    pid?: number
+    user?: string
+    executable_path?: string
+    working_directory?: string
+    importable?: boolean
+  }
+
   interface PreflightRow {
     label: string
     status: CapabilityState
@@ -31,9 +42,18 @@
   interface Props {
     hostCapabilities: Record<string, unknown>
     runtimeDefinitions: RuntimeDefinition[]
+    installedBinaries?: AgentRuntimeRow[]
+    hostProcesses?: AgentRuntimeRow[]
+    managedRuntimes?: AgentRuntimeRow[]
   }
 
-  let { hostCapabilities, runtimeDefinitions }: Props = $props()
+  let {
+    hostCapabilities,
+    runtimeDefinitions,
+    installedBinaries = [],
+    hostProcesses = [],
+    managedRuntimes = [],
+  }: Props = $props()
 
   const containerRows = $derived([
     capabilityRow("Docker", capabilityAt(["container", "docker"])),
@@ -68,8 +88,12 @@
   ])
 
   const agentRows = $derived(
-    agentBinaryRows(hostCapabilities, runtimeDefinitions),
+    agentBinaryRows(hostCapabilities, runtimeDefinitions, installedBinaries),
   )
+
+  const processRows = $derived(agentProcessRows(hostProcesses))
+
+  const managedRows = $derived(managedRuntimeRows(managedRuntimes))
 
   function capabilityAt(path: string[]): HostCapability {
     let value: unknown = hostCapabilities
@@ -139,18 +163,52 @@
   function agentBinaryRows(
     capabilities: Record<string, unknown>,
     definitions: RuntimeDefinition[],
+    binaries: AgentRuntimeRow[],
   ): PreflightRow[] {
     const agentCapabilities = recordAt(capabilities, ["agent_binaries"])
     const definitionNames = new Map(
       definitions.map((definition) => [definition.kind, definition.name]),
     )
+    const installedKinds = new Set(binaries.map((binary) => binary.kind))
 
-    return Object.entries(agentCapabilities).map(([kind, capability]) =>
-      capabilityRow(
+    return Object.entries(agentCapabilities).map(([kind, capability]) => {
+      const row = capabilityRow(
         definitionNames.get(kind) ?? titleize(kind),
         normalizeCapability(capability),
-      ),
-    )
+      )
+      if (installedKinds.has(kind)) row.details.push("Detected on PATH")
+
+      return row
+    })
+  }
+
+  function agentProcessRows(processes: AgentRuntimeRow[]): PreflightRow[] {
+    if (processes.length === 0) return []
+
+    return processes.map((process) => ({
+      label: process.name ?? titleize(process.kind ?? "agent"),
+      status: process.status ?? "detected",
+      details: [
+        process.pid ? `PID: ${process.pid}` : undefined,
+        process.user ? `User: ${process.user}` : undefined,
+        process.executable_path,
+        process.working_directory ? `CWD: ${process.working_directory}` : undefined,
+        process.importable === false ? "Not importable yet" : "Importable into Crucible",
+      ].filter((detail): detail is string => Boolean(detail)),
+    }))
+  }
+
+  function managedRuntimeRows(runtimes: AgentRuntimeRow[]): PreflightRow[] {
+    if (runtimes.length === 0) return []
+
+    return runtimes.map((runtime) => ({
+      label: runtime.name ?? titleize(runtime.kind ?? "agent"),
+      status: runtime.status ?? "unknown",
+      details: [
+        runtime.executable_path,
+        runtime.working_directory ? `Project: ${runtime.working_directory}` : undefined,
+      ].filter((detail): detail is string => Boolean(detail)),
+    }))
   }
 
   function recordAt(
@@ -301,10 +359,12 @@
     <HeadingSmall title="Setup preflight" description="Local host checks" />
   </div>
 
-  <div class="bg-border grid gap-px sm:grid-cols-2 xl:grid-cols-4">
+  <div class="bg-border grid gap-px sm:grid-cols-2 xl:grid-cols-5">
     {@render preflightGroup("Container", containerRows)}
     {@render preflightGroup("Host", hostRows)}
     {@render preflightGroup("Network", networkRows)}
-    {@render preflightGroup("Agents", agentRows)}
+    {@render preflightGroup("Installed", agentRows)}
+    {@render preflightGroup("External", processRows)}
+    {@render preflightGroup("Managed", managedRows)}
   </div>
 </section>

@@ -6,7 +6,7 @@ class AgentRuntimeRowSerializer
       {
         id: "detected:#{command}",
         row_id: "detected:#{command}",
-        source: "auto_detected",
+        source: "installed_binary",
         kind:,
         name:,
         runtime_kind: kind,
@@ -31,6 +31,45 @@ class AgentRuntimeRowSerializer
       }
     end
 
+    def host_process(process)
+      runtime_definition = RuntimeDefinition.active.find_by(kind: process.agent_kind)
+      import_path = import_path(process, runtime_definition)
+
+      {
+        id: "host_process:#{process.pid}",
+        row_id: "host_process:#{process.pid}",
+        source: "external_process",
+        kind: process.agent_kind,
+        name: process.agent_name,
+        runtime_kind: process.agent_kind,
+        runtime_name: process.agent_name,
+        pid: process.pid,
+        user: process.user,
+        command: process.command,
+        executable_command: process.comm,
+        executable_path: process.executable,
+        executable: {
+          command: process.comm,
+          path: process.executable,
+          status: process.executable.present? ? "running" : "unavailable"
+        },
+        working_directory: process.cwd,
+        token_usage: nil,
+        run_usage: nil,
+        status: "running",
+        workspace: nil,
+        started_at: process.started_at&.iso8601,
+        age_seconds: process.age_seconds,
+        last_activity_at: process.started_at&.iso8601,
+        importable: process.importable,
+        import_path:,
+        agent_path: nil,
+        runtime_instance_id: nil,
+        runtime_definition_id: runtime_definition&.id,
+        links: import_path.present? ? {import: import_path} : {}
+      }
+    end
+
     def manual(runtime_instance)
       latest_agent_run_at = latest_agent_run_at(runtime_instance)
       executable = manual_executable(runtime_instance)
@@ -38,7 +77,7 @@ class AgentRuntimeRowSerializer
       {
         id: "runtime_instance:#{runtime_instance.id}",
         row_id: "runtime_instance:#{runtime_instance.id}",
-        source: "manual",
+        source: "crucible_managed",
         kind: runtime_instance.runtime_definition.kind,
         name: runtime_instance.name,
         runtime_kind: runtime_instance.runtime_definition.kind,
@@ -63,6 +102,20 @@ class AgentRuntimeRowSerializer
     end
 
     private
+
+    def import_path(process, runtime_definition)
+      return unless process.importable && runtime_definition
+
+      Rails.application.routes.url_helpers.new_agent_path(
+        runtime_definition_id: runtime_definition.id,
+        kind: process.agent_kind,
+        name: "#{process.agent_name} import",
+        template_mode: "host_binary",
+        host_binary_path: process.executable,
+        command: process.command,
+        working_directory: process.cwd
+      )
+    end
 
     def manual_executable(runtime_instance)
       command = runtime_instance.config["command"].presence || runtime_instance.runtime_definition.default_command.presence
