@@ -1,10 +1,11 @@
 <script lang="ts">
+  import { router } from "@inertiajs/svelte"
   import { ArrowLeft, Clock, Code2, MessageSquare, Terminal } from "@lucide/svelte"
 
   import { Badge } from "@/components/ui/badge"
   import { Button } from "@/components/ui/button"
   import AppLayout from "@/layouts/app-layout.svelte"
-  import { agentsPath, codexSessionsPath } from "@/routes"
+  import { agentsPath, codexSessionPath, codexSessionsPath } from "@/routes"
   import type { BreadcrumbItem } from "@/types"
 
   interface SessionCounts {
@@ -19,6 +20,7 @@
 
   interface CodexSession {
     id: string
+    route_id: string
     title: string
     cwd?: string
     started_at?: string
@@ -50,9 +52,36 @@
   interface Props {
     session: CodexSession
     timeline: TimelineItem[]
+    timeline_page: TimelinePage
   }
 
-  let { session, timeline }: Props = $props()
+  interface TimelinePage {
+    offset: number
+    limit: number
+    returned_count: number
+    total_displayable: number
+    has_next_page: boolean
+  }
+
+  let { session, timeline, timeline_page }: Props = $props()
+  let visibleTimeline = $state<TimelineItem[]>([])
+  let currentTimelinePage = $state<TimelinePage>({
+    offset: 0,
+    limit: 100,
+    returned_count: 0,
+    total_displayable: 0,
+    has_next_page: false,
+  })
+  let loadingMore = $state(false)
+  let loadedRouteId = $state<string | null>(null)
+
+  $effect(() => {
+    if (loadedRouteId !== session.route_id) {
+      visibleTimeline = timeline
+      currentTimelinePage = timeline_page
+      loadedRouteId = session.route_id
+    }
+  })
 
   let breadcrumbs: BreadcrumbItem[] = $derived([
     {
@@ -104,6 +133,33 @@
 
   function timelineText(item: TimelineItem) {
     return item.text || renderValue(item.arguments) || renderValue(item.output)
+  }
+
+  function loadMoreTimeline() {
+    if (loadingMore || !currentTimelinePage.has_next_page) return
+
+    loadingMore = true
+    router.get(
+      codexSessionPath(session.route_id, {
+        timeline_offset:
+          currentTimelinePage.offset + currentTimelinePage.returned_count,
+        timeline_limit: currentTimelinePage.limit,
+      }),
+      {},
+      {
+        preserveScroll: true,
+        preserveState: true,
+        only: ["timeline", "timeline_page"],
+        onSuccess: (page) => {
+          const props = page.props as Partial<Props>
+          visibleTimeline = [...visibleTimeline, ...(props.timeline ?? [])]
+          currentTimelinePage = props.timeline_page ?? currentTimelinePage
+        },
+        onFinish: () => {
+          loadingMore = false
+        },
+      }
+    )
   }
 </script>
 
@@ -201,9 +257,9 @@
         <h2 class="text-base font-semibold">Timeline</h2>
       </div>
 
-      {#if timeline.length > 0}
+      {#if visibleTimeline.length > 0}
         <div class="divide-border divide-y">
-          {#each timeline as item, index (`${item.kind}-${item.line_number}-${index}`)}
+          {#each visibleTimeline as item, index (`${item.kind}-${item.line_number}-${index}`)}
             {@const Icon = itemIcon(item.kind)}
             <article class="grid gap-3 p-4 lg:grid-cols-[11rem_minmax(0,1fr)]">
               <div class="text-muted-foreground text-sm">
@@ -227,6 +283,20 @@
               >{timelineText(item)}</pre>
             </article>
           {/each}
+        </div>
+        <div class="border-border flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div class="text-muted-foreground text-sm">
+            Showing {visibleTimeline.length.toLocaleString()} of
+            {currentTimelinePage.total_displayable.toLocaleString()} timeline items
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!currentTimelinePage.has_next_page || loadingMore}
+            onclick={loadMoreTimeline}
+          >
+            {loadingMore ? "Loading" : "Load more"}
+          </Button>
         </div>
       {:else}
         <div class="p-8 text-center">
