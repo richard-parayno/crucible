@@ -7,7 +7,7 @@ class SystemChecksController < InertiaController
     runtime_inventory = AgentRuntimeInventory.new(user: Current.session.user).call
 
     render inertia: {
-      runtime_definitions: RuntimeDefinition.active.map { |runtime_definition| RuntimeInstanceSerializer.runtime_definition(runtime_definition) },
+      runtime_definitions: RuntimeDefinition.supported_for_add_agent.map { |runtime_definition| RuntimeInstanceSerializer.runtime_definition(runtime_definition) },
       host_capabilities: HostCapabilities.new.call,
       installed_binaries: runtime_inventory.fetch(:detected_runtimes),
       host_processes: runtime_inventory.fetch(:host_processes),

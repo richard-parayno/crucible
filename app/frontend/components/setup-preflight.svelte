@@ -20,9 +20,25 @@
   interface RuntimeDefinition {
     kind: string
     name: string
+    config_schema?: {
+      templates?: RuntimeTemplate[]
+      verified_artifacts?: unknown[]
+      trust_level?: string
+      verification_summary?: string
+    }
+  }
+
+  interface RuntimeTemplate {
+    mode: string
+    name?: string
+    binary?: string
+    verified_artifacts?: unknown[]
+    trust_level?: string
+    verification_summary?: string
   }
 
   interface AgentRuntimeRow {
+    source?: string
     kind?: string
     name?: string
     status?: string
@@ -31,6 +47,8 @@
     executable_path?: string
     working_directory?: string
     importable?: boolean
+    template_mode?: string
+    verification_summary?: string
   }
 
   interface PreflightRow {
@@ -169,14 +187,36 @@
     const definitionNames = new Map(
       definitions.map((definition) => [definition.kind, definition.name]),
     )
+    const definitionsByKind = new Map(
+      definitions.map((definition) => [definition.kind, definition]),
+    )
     const installedKinds = new Set(binaries.map((binary) => binary.kind))
 
     return Object.entries(agentCapabilities).map(([kind, capability]) => {
+      const definition = definitionsByKind.get(kind)
       const row = capabilityRow(
         definitionNames.get(kind) ?? titleize(kind),
         normalizeCapability(capability),
       )
-      if (installedKinds.has(kind)) row.details.push("Detected on PATH")
+      const templates = definition?.config_schema?.templates ?? []
+      const hostBinaryTemplate = templates.find(
+        (template) => template.mode === "host_binary",
+      )
+      const managedTemplate = templates.find(
+        (template) => template.mode === "managed_image",
+      )
+
+      if (installedKinds.has(kind)) {
+        row.details.push(
+          "Installed binary detected; host-binary template can import its path.",
+        )
+      } else if (hostBinaryTemplate) {
+        row.details.push("Host-binary template available; binary not detected.")
+      } else {
+        row.details.push("Host-binary install unavailable for this template.")
+      }
+
+      row.details.push(verificationDetail(managedTemplate, definition))
 
       return row
     })
@@ -192,8 +232,12 @@
         process.pid ? `PID: ${process.pid}` : undefined,
         process.user ? `User: ${process.user}` : undefined,
         process.executable_path,
-        process.working_directory ? `CWD: ${process.working_directory}` : undefined,
-        process.importable === false ? "Not importable yet" : "Importable into Crucible",
+        process.working_directory
+          ? `CWD: ${process.working_directory}`
+          : undefined,
+        process.importable === false
+          ? "External process detected; not importable yet"
+          : "External process can be imported with path, command, and CWD",
       ].filter((detail): detail is string => Boolean(detail)),
     }))
   }
@@ -205,10 +249,43 @@
       label: runtime.name ?? titleize(runtime.kind ?? "agent"),
       status: runtime.status ?? "unknown",
       details: [
+        "Crucible-managed runtime",
+        runtime.template_mode
+          ? `Template: ${titleize(runtime.template_mode)}`
+          : undefined,
+        runtime.verification_summary,
         runtime.executable_path,
-        runtime.working_directory ? `Project: ${runtime.working_directory}` : undefined,
+        runtime.working_directory
+          ? `Project: ${runtime.working_directory}`
+          : undefined,
       ].filter((detail): detail is string => Boolean(detail)),
     }))
+  }
+
+  function verificationDetail(
+    template?: RuntimeTemplate,
+    definition?: RuntimeDefinition,
+  ) {
+    const summary =
+      template?.verification_summary ??
+      definition?.config_schema?.verification_summary
+    if (summary) return summary
+
+    const verifiedArtifacts =
+      template?.verified_artifacts ??
+      definition?.config_schema?.verified_artifacts ??
+      []
+    if (verifiedArtifacts.length > 0) {
+      return "Verified managed install has pinned artifact metadata."
+    }
+
+    const trustLevel =
+      template?.trust_level ?? definition?.config_schema?.trust_level
+    if (trustLevel === "unavailable") {
+      return "Managed install unavailable for this template."
+    }
+
+    return "Managed install unverified until a pinned artifact and checksum exist."
   }
 
   function recordAt(

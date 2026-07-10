@@ -1,6 +1,18 @@
 # frozen_string_literal: true
 
 class RuntimeInstanceSerializer
+  METADATA_CONFIG_KEYS = %w[
+    docs_url
+    install_sources
+    source_url
+    trusted_urls
+    trust_level
+    verification_summary
+    verified_artifacts
+    verified_managed_install_available
+    version_pin
+  ].freeze
+
   class << self
     def workspace(workspace)
       {
@@ -21,7 +33,8 @@ class RuntimeInstanceSerializer
         description: runtime_definition.description,
         container_image: runtime_definition.container_image,
         default_command: runtime_definition.default_command,
-        config_schema: runtime_definition.config_schema
+        config_schema: runtime_definition.config_schema,
+        metadata: runtime_definition.config_schema.slice(*METADATA_CONFIG_KEYS)
       }
     end
 

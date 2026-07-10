@@ -201,7 +201,37 @@ RSpec.describe "Agents", type: :request do
     expect(inertia).to be_inertia_response
     expect(inertia).to render_component("agents/new")
     expect(inertia.props.fetch("workspace").fetch("id")).to eq(workspace.id)
-    expect(inertia.props.fetch("runtime_definitions")).not_to be_empty
+    runtime_definitions = inertia.props.fetch("runtime_definitions")
+    expect(runtime_definitions.pluck("kind")).to eq(%w[codex claude opencode hermes openclaw])
+    expect(runtime_definitions.pluck("kind")).not_to include("custom")
+    expect(runtime_definitions.first.fetch("metadata")).to include(
+      "install_sources" => include(hash_including("kind" => "npm")),
+      "trusted_urls" => be_present,
+      "version_pin" => include("field" => "npm_package_version"),
+      "verified_artifacts" => include(hash_including("kind" => "integrity", "value" => "npm registry dist.integrity")),
+      "trust_level" => "official_upstream",
+      "verified_managed_install_available" => false
+    )
+  end
+
+  it "keeps custom definitions hidden from Add Agent while valid for internal creation" do
+    RuntimeDefinitionSeeder.call
+    custom_definition = RuntimeDefinition.find_by!(kind: "custom")
+
+    get new_agent_path(workspace_id: workspace.id)
+
+    expect(inertia.props.fetch("runtime_definitions").pluck("kind")).not_to include("custom")
+
+    post agents_path, params: {
+      workspace_id: workspace.id,
+      runtime_definition_id: custom_definition.id,
+      name: "Internal custom",
+      template_mode: "custom",
+      container_image: "alpine:latest",
+      command: "echo internal"
+    }
+
+    expect(response).to redirect_to(agent_path(workspace.runtime_instances.last))
   end
 
   it "renders an agent page for a runtime instance in the user's workspace" do

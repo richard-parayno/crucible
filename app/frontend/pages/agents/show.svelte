@@ -126,6 +126,11 @@
 
   const composeProject = $derived(agent.compose_project)
   const configEntries = $derived(Object.entries(agent.config ?? {}))
+  const templateMode = $derived(
+    typeof agent.config?.template_mode === "string"
+      ? agent.config.template_mode
+      : "Not recorded",
+  )
   const environmentRows = $derived([
     ...(agent.runtime_env ?? []),
     ...(agent.environment_variables ?? []).map((variable) => ({
@@ -302,6 +307,10 @@
           <div>
             <div class="text-muted-foreground">Placement</div>
             <div class="font-medium">{agent.placement_kind}</div>
+          </div>
+          <div>
+            <div class="text-muted-foreground">Template</div>
+            <div class="font-medium">{templateMode}</div>
           </div>
         </CardContent>
       </Card>

@@ -14,4 +14,13 @@ RSpec.describe RuntimeDefinition, type: :model do
       end
     end
   end
+
+  describe ".supported_for_add_agent" do
+    it "returns active supported definitions in catalog order and hides custom" do
+      RuntimeDefinitionSeeder.call
+      RuntimeDefinition.find_by!(kind: "opencode").update!(active: false)
+
+      expect(described_class.supported_for_add_agent.pluck(:kind)).to eq(%w[codex claude hermes openclaw])
+    end
+  end
 end

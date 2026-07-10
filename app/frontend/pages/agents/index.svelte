@@ -54,6 +54,9 @@
     age_seconds?: number
     importable?: boolean
     import_path?: string
+    template_mode?: string
+    trust_level?: string
+    verification_summary?: string
     token_usage?: TokenUsage | null
     run_usage?: RunUsage | null
     last_activity_at?: string
@@ -115,6 +118,52 @@
     }
 
     return "border-border bg-background text-muted-foreground"
+  }
+
+  function sourceLabel(agentRuntime: AgentRuntimeRow) {
+    if (agentRuntime.source === "installed_binary") return "Installed binary"
+    if (agentRuntime.source === "external_process") return "External process"
+    if (agentRuntime.source === "crucible_managed") {
+      return "Crucible-managed runtime"
+    }
+    if (agentRuntime.source === "install_unavailable") {
+      return "Install unavailable"
+    }
+    if (agentRuntime.source === "install_unverified") {
+      return "Install unverified"
+    }
+
+    return titleize(agentRuntime.source)
+  }
+
+  function sourceDetail(agentRuntime: AgentRuntimeRow) {
+    if (agentRuntime.verification_summary) {
+      return agentRuntime.verification_summary
+    }
+
+    if (agentRuntime.source === "installed_binary") {
+      return "Detected host binary; can be imported into a host-binary template."
+    }
+
+    if (agentRuntime.source === "external_process") {
+      return agentRuntime.importable === false
+        ? "Host process detected, but not importable yet."
+        : "Read-only host process; import keeps binary path, command, and CWD."
+    }
+
+    if (agentRuntime.source === "crucible_managed") {
+      return "Runtime created and controlled by Crucible."
+    }
+
+    if (agentRuntime.source === "install_unavailable") {
+      return "No supported install path is available for this template."
+    }
+
+    if (agentRuntime.source === "install_unverified") {
+      return "Managed install needs a pinned artifact and checksum before it is verified."
+    }
+
+    return undefined
   }
 
   function titleize(value?: string) {
@@ -197,7 +246,11 @@
   }
 </script>
 
-{#snippet runtimeTable(title: string, description: string, rows: AgentRuntimeRow[])}
+{#snippet runtimeTable(
+  title: string,
+  description: string,
+  rows: AgentRuntimeRow[],
+)}
   <section class="border-border overflow-hidden rounded-lg border">
     <div
       class="border-border flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between"
@@ -254,12 +307,24 @@
                   </div>
                 </td>
                 <td class="px-4 py-3 align-top">
-                  <Badge
-                    variant="outline"
-                    class={sourceTone(agentRuntime.source)}
-                  >
-                    {titleize(agentRuntime.source)}
-                  </Badge>
+                  <div class="max-w-56 space-y-1">
+                    <Badge
+                      variant="outline"
+                      class={sourceTone(agentRuntime.source)}
+                    >
+                      {sourceLabel(agentRuntime)}
+                    </Badge>
+                    {#if agentRuntime.template_mode}
+                      <div class="text-muted-foreground text-xs">
+                        {titleize(agentRuntime.template_mode)}
+                      </div>
+                    {/if}
+                    {#if sourceDetail(agentRuntime)}
+                      <p class="text-muted-foreground text-xs leading-5">
+                        {sourceDetail(agentRuntime)}
+                      </p>
+                    {/if}
+                  </div>
                 </td>
                 <td class="px-4 py-3 align-top">
                   <Badge
@@ -396,17 +461,17 @@
     {#if agentRuntimes.length > 0}
       {@render runtimeTable(
         "Installed Binaries",
-        "Agent CLIs discovered on PATH and available as import inputs.",
+        "Detected host CLIs. These can be imported into supported host-binary templates.",
         detectedRuntimes,
       )}
       {@render runtimeTable(
         "External Host Processes",
-        "Known agent processes running outside Crucible. These are read-only until imported.",
+        "Known agent processes running outside Crucible. Import keeps the detected path, command, and working directory.",
         hostProcesses,
       )}
       {@render runtimeTable(
         "Crucible Managed Runtimes",
-        "Docker Compose runtimes created and controlled by Crucible.",
+        "Docker Compose runtimes created and controlled by Crucible from supported templates.",
         manualRuntimes,
       )}
     {:else}

@@ -12,7 +12,7 @@ class AgentsController < InertiaController
 
     render inertia: {
       workspace: workspace.slice(:id, :name, :default_workspace),
-      runtime_definitions: RuntimeDefinition.active.map { |runtime_definition| RuntimeInstanceSerializer.runtime_definition(runtime_definition) },
+      runtime_definitions: supported_runtime_definitions,
       import_defaults: import_defaults
     }
   end
@@ -124,6 +124,10 @@ class AgentsController < InertiaController
 
     value = value.last if value.is_a?(Array)
     ActiveModel::Type::Boolean.new.cast(value)
+  end
+
+  def supported_runtime_definitions
+    RuntimeDefinition.supported_for_add_agent.map { |runtime_definition| RuntimeInstanceSerializer.runtime_definition(runtime_definition) }
   end
 
   def sync_runtime_definitions

@@ -32,6 +32,12 @@ RSpec.describe "SystemChecks", type: :request do
     expect(inertia.props.fetch("installed_binaries")).to eq([{"id" => "detected:codex"}])
     expect(inertia.props.fetch("host_processes")).to eq([{"id" => "host_process:123"}])
     expect(inertia.props.fetch("managed_runtimes")).to eq([{"id" => "runtime_instance:456"}])
-    expect(inertia.props.fetch("runtime_definitions")).not_to be_empty
+    expect(inertia.props.fetch("runtime_definitions").pluck("kind")).to eq(%w[codex claude opencode hermes openclaw])
+    expect(inertia.props.fetch("runtime_definitions").first.fetch("metadata")).to include(
+      "install_sources" => be_present,
+      "trusted_urls" => be_present,
+      "version_pin" => include("field" => "npm_package_version"),
+      "verified_artifacts" => include(hash_including("kind" => "integrity", "value" => "npm registry dist.integrity"))
+    )
   end
 end

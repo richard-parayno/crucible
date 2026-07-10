@@ -7,8 +7,13 @@ RSpec.describe RuntimeDefinitionSeeder do
     it "seeds catalog runtime definitions including Codex" do
       described_class.call
 
-      expect(RuntimeDefinition.order(:kind).pluck(:kind)).to contain_exactly("codex", "custom", "hermes", "openclaw")
+      expect(RuntimeDefinition.order(:kind).pluck(:kind)).to contain_exactly("codex", "claude", "custom", "hermes", "opencode", "openclaw")
       expect(RuntimeDefinition.find_by!(kind: "codex").config_schema.fetch("templates").pluck("mode")).to contain_exactly("managed_image", "host_binary")
+      expect(RuntimeDefinition.find_by!(kind: "codex").config_schema).to include(
+        "trust_level" => "official_upstream",
+        "verified_managed_install_available" => false,
+        "source_url" => "https://github.com/openai/codex"
+      )
     end
 
     it "updates existing runtime definitions from the catalog" do

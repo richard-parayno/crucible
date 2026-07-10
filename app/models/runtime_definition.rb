@@ -12,6 +12,12 @@ class RuntimeDefinition < ApplicationRecord
 
   scope :active, -> { where(active: true).order(:name) }
 
+  def self.supported_for_add_agent
+    definitions = active.where(kind: AgentCatalog.user_facing_kinds).index_by(&:kind)
+
+    AgentCatalog.user_facing_kinds.filter_map { |kind| definitions[kind] }
+  end
+
   private
 
   def apply_defaults

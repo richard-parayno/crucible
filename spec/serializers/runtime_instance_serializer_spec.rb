@@ -3,6 +3,29 @@
 require "rails_helper"
 
 RSpec.describe RuntimeInstanceSerializer do
+  describe ".runtime_definition" do
+    it "serializes template provenance metadata" do
+      runtime_definition = create(
+        :runtime_definition,
+        **AgentCatalog.runtime_definitions.find { |definition| definition.fetch(:kind) == "codex" }
+      )
+
+      serialized = described_class.runtime_definition(runtime_definition)
+
+      expect(serialized).to include(
+        kind: "codex",
+        metadata: include(
+          "trust_level" => "official_upstream",
+          "verified_managed_install_available" => false,
+          "install_sources" => include(hash_including("kind" => "npm", "package" => "@openai/codex")),
+          "trusted_urls" => include(hash_including("url" => "https://github.com/openai/codex")),
+          "version_pin" => include("field" => "npm_package_version"),
+          "verified_artifacts" => include(hash_including("kind" => "integrity", "value" => "npm registry dist.integrity"))
+        )
+      )
+    end
+  end
+
   describe ".instance" do
     it "includes safe compose escape-hatch metadata" do
       runtime_instance = create(
