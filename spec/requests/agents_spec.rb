@@ -14,6 +14,7 @@ RSpec.describe "Agents", type: :request do
     allow(ExecutablePathLookup).to receive(:new).and_return(lookup)
     allow(lookup).to receive(:call).with("codex").and_return("/usr/local/bin/codex")
     allow(lookup).to receive(:call).with("claude").and_return(nil)
+    allow(lookup).to receive(:call).with("opencode").and_return("/usr/local/bin/opencode")
     allow(lookup).to receive(:call).with("openclaw").and_return(nil)
     allow(lookup).to receive(:call).with("hermes-agent").and_return(nil)
 
@@ -41,23 +42,42 @@ RSpec.describe "Agents", type: :request do
     expect(inertia).to be_inertia_response
     expect(inertia).to render_component("agents/index")
 
-    detected_runtime = inertia.props.fetch("detected_runtimes").sole
-    expect(detected_runtime).to include(
-      "id" => "detected:codex",
-      "row_id" => "detected:codex",
-      "source" => "auto_detected",
-      "kind" => "codex",
-      "name" => "Codex",
-      "working_directory" => Rails.root.to_s,
-      "status" => "available",
-      "executable_command" => "codex",
-      "executable_path" => "/usr/local/bin/codex",
-      "agent_path" => nil,
-      "executable" => {
-        "command" => "codex",
-        "path" => "/usr/local/bin/codex",
-        "status" => "available"
-      }
+    detected_runtimes = inertia.props.fetch("detected_runtimes")
+    expect(detected_runtimes).to contain_exactly(
+      include(
+        "id" => "detected:codex",
+        "row_id" => "detected:codex",
+        "source" => "auto_detected",
+        "kind" => "codex",
+        "name" => "Codex",
+        "working_directory" => Rails.root.to_s,
+        "status" => "available",
+        "executable_command" => "codex",
+        "executable_path" => "/usr/local/bin/codex",
+        "agent_path" => nil,
+        "executable" => {
+          "command" => "codex",
+          "path" => "/usr/local/bin/codex",
+          "status" => "available"
+        }
+      ),
+      include(
+        "id" => "detected:opencode",
+        "row_id" => "detected:opencode",
+        "source" => "auto_detected",
+        "kind" => "opencode",
+        "name" => "OpenCode",
+        "working_directory" => Rails.root.to_s,
+        "status" => "available",
+        "executable_command" => "opencode",
+        "executable_path" => "/usr/local/bin/opencode",
+        "agent_path" => nil,
+        "executable" => {
+          "command" => "opencode",
+          "path" => "/usr/local/bin/opencode",
+          "status" => "available"
+        }
+      )
     )
 
     manual_runtime = inertia.props.fetch("manual_runtimes").sole
@@ -90,6 +110,7 @@ RSpec.describe "Agents", type: :request do
     )
     expect(inertia.props.fetch("agent_runtimes").pluck("id")).to contain_exactly(
       "detected:codex",
+      "detected:opencode",
       "runtime_instance:#{runtime_instance.id}"
     )
   end

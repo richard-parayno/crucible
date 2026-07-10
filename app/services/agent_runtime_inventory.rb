@@ -4,6 +4,7 @@ class AgentRuntimeInventory
   DETECTABLE_RUNTIMES = [
     {command: "codex", name: "Codex", kind: "codex"},
     {command: "claude", name: "Claude Code", kind: "claude"},
+    {command: "opencode", name: "OpenCode", kind: "opencode"},
     {command: "openclaw", name: "OpenClaw", kind: "openclaw"},
     {command: "hermes-agent", name: "Hermes Agent", kind: "hermes_agent"}
   ].freeze
