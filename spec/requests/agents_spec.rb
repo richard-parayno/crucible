@@ -9,6 +9,91 @@ RSpec.describe "Agents", type: :request do
 
   before { sign_in_as(user) }
 
+  it "renders the agent index with detected system runtimes and user's manual runtimes" do
+    lookup = instance_double(ExecutablePathLookup)
+    allow(ExecutablePathLookup).to receive(:new).and_return(lookup)
+    allow(lookup).to receive(:call).with("codex").and_return("/usr/local/bin/codex")
+    allow(lookup).to receive(:call).with("claude").and_return(nil)
+    allow(lookup).to receive(:call).with("openclaw").and_return(nil)
+    allow(lookup).to receive(:call).with("hermes-agent").and_return(nil)
+
+    runtime_instance = create(
+      :runtime_instance,
+      workspace:,
+      runtime_definition: create(:runtime_definition, kind: "codex", name: "Codex"),
+      name: "Codex project runtime",
+      status: "running",
+      started_at: 15.minutes.ago,
+      last_heartbeat_at: 5.minutes.ago,
+      config: {
+        "command" => "codex",
+        "executable_path" => "/opt/crucible/bin/codex",
+        "working_directory" => "/workspaces/crucible"
+      }
+    )
+    create(:agent_run, runtime_instance:, status: "succeeded", finished_at: 4.minutes.ago)
+    create(:agent_run, runtime_instance:, status: "running", started_at: 2.minutes.ago)
+    create(:runtime_instance, workspace: create(:user).default_workspace)
+
+    get agents_path
+
+    expect(response).to have_http_status(:success)
+    expect(inertia).to be_inertia_response
+    expect(inertia).to render_component("agents/index")
+
+    detected_runtime = inertia.props.fetch("detected_runtimes").sole
+    expect(detected_runtime).to include(
+      "id" => "detected:codex",
+      "row_id" => "detected:codex",
+      "source" => "auto_detected",
+      "kind" => "codex",
+      "name" => "Codex",
+      "working_directory" => Rails.root.to_s,
+      "status" => "available",
+      "executable_command" => "codex",
+      "executable_path" => "/usr/local/bin/codex",
+      "agent_path" => nil,
+      "executable" => {
+        "command" => "codex",
+        "path" => "/usr/local/bin/codex",
+        "status" => "available"
+      }
+    )
+
+    manual_runtime = inertia.props.fetch("manual_runtimes").sole
+    expect(manual_runtime).to include(
+      "id" => "runtime_instance:#{runtime_instance.id}",
+      "row_id" => "runtime_instance:#{runtime_instance.id}",
+      "source" => "manual",
+      "kind" => "codex",
+      "name" => "Codex project runtime",
+      "status" => "running",
+      "working_directory" => "/workspaces/crucible",
+      "executable_command" => "codex",
+      "executable_path" => "/opt/crucible/bin/codex",
+      "agent_path" => agent_path(runtime_instance),
+      "runtime_instance_id" => runtime_instance.id,
+      "runtime_definition_id" => runtime_instance.runtime_definition_id,
+      "workspace" => hash_including("id" => workspace.id, "name" => workspace.name),
+      "executable" => {
+        "command" => "codex",
+        "path" => "/opt/crucible/bin/codex",
+        "status" => "configured"
+      },
+      "run_usage" => {
+        "total_count" => 2,
+        "completed_count" => 1,
+        "running_count" => 1,
+        "last_run_at" => be_present
+      },
+      "token_usage" => nil
+    )
+    expect(inertia.props.fetch("agent_runtimes").pluck("id")).to contain_exactly(
+      "detected:codex",
+      "runtime_instance:#{runtime_instance.id}"
+    )
+  end
+
   it "renders the new agent page for the selected workspace" do
     runtime_definition
 

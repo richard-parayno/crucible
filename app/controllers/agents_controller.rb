@@ -3,6 +3,10 @@
 class AgentsController < InertiaController
   before_action :sync_runtime_definitions
 
+  def index
+    render inertia: AgentRuntimeInventory.new(user: Current.session.user).call
+  end
+
   def new
     workspace = selected_workspace
 

@@ -36,8 +36,6 @@
 
   interface WorkspaceSummary {
     id: number
-    name: string
-    default_workspace: boolean
   }
 
   interface Props {
@@ -45,10 +43,7 @@
     runtime_definitions: RuntimeDefinition[]
   }
 
-  let {
-    workspace,
-    runtime_definitions: runtimeDefinitions,
-  }: Props = $props()
+  let { workspace, runtime_definitions: runtimeDefinitions }: Props = $props()
 
   let selectedRuntimeDefinitionId = $state(
     runtimeDefinitions[0]?.id?.toString() ?? "",

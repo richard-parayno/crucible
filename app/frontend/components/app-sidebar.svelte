@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Link } from "@inertiajs/svelte"
-  import { Bot, LayoutGrid, MonitorCheck } from "@lucide/svelte"
+  import { Bot, LayoutGrid, MonitorCheck, Plus } from "@lucide/svelte"
 
   import NavMain from "@/components/nav-main.svelte"
   import NavUser from "@/components/nav-user.svelte"
@@ -14,6 +14,7 @@
     SidebarMenuItem,
   } from "@/components/ui/sidebar"
   import {
+    agentsPath,
     dashboardPath,
     newAgentPath,
     systemCheckPath,
@@ -29,9 +30,14 @@
       icon: LayoutGrid,
     },
     {
+      title: "Agents",
+      href: agentsPath(),
+      icon: Bot,
+    },
+    {
       title: "Add Agent",
       href: newAgentPath(),
-      icon: Bot,
+      icon: Plus,
     },
     {
       title: "System Check",
