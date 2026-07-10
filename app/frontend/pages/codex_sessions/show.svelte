@@ -141,9 +141,11 @@
     loadingMore = true
     router.get(
       codexSessionPath(session.route_id, {
-        timeline_offset:
-          currentTimelinePage.offset + currentTimelinePage.returned_count,
-        timeline_limit: currentTimelinePage.limit,
+        params: {
+          timeline_offset:
+            currentTimelinePage.offset + currentTimelinePage.returned_count,
+          timeline_limit: currentTimelinePage.limit,
+        },
       }),
       {},
       {
