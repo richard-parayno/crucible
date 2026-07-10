@@ -15,6 +15,7 @@
   } from "@/components/ui/sidebar"
   import {
     agentsPath,
+    codexSessionsPath,
     dashboardPath,
     newAgentPath,
     systemCheckPath,
@@ -41,6 +42,10 @@
         {
           title: "Add Agents",
           href: newAgentPath(),
+        },
+        {
+          title: "Sessions",
+          href: codexSessionsPath(),
         },
       ],
     },

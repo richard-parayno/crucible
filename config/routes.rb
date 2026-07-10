@@ -17,6 +17,7 @@ Rails.application.routes.draw do
   get :dashboard, to: "dashboard#index"
   resource :system_check, only: %i[show]
   resources :agents, only: %i[index new create show]
+  resources :codex_sessions, only: %i[index show], param: :session_id
 
   resources :workspaces, only: [] do
     resources :environment_variables, only: %i[create update destroy]
