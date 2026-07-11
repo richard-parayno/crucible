@@ -391,6 +391,10 @@
   function statusLabel(status: CapabilityState) {
     return titleize(status || "unknown")
   }
+
+  function indexedKey(value: string, index: number) {
+    return `${index}:${value}`
+  }
 </script>
 
 {#snippet preflightGroup(title: string, rows: PreflightRow[])}
@@ -405,7 +409,7 @@
       <p class="text-muted-foreground py-2 text-sm">No checks.</p>
     {:else}
       <dl class="divide-border divide-y">
-        {#each rows as row (row.label)}
+        {#each rows as row, rowIndex (indexedKey(row.label, rowIndex))}
           <div class="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1 py-2">
             <dt class="min-w-0 truncate text-sm font-medium">{row.label}</dt>
             <dd>
@@ -415,7 +419,7 @@
             </dd>
             {#if row.details.length > 0}
               <dd class="col-span-2 min-w-0 space-y-1">
-                {#each row.details as detail (detail)}
+                {#each row.details as detail, detailIndex (indexedKey(detail, detailIndex))}
                   <p
                     class="text-muted-foreground min-w-0 text-xs leading-5 break-words [overflow-wrap:anywhere]"
                   >
