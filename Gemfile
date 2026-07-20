@@ -40,7 +40,7 @@ gem "thruster", require: false
 gem "vite_rails", "~> 3.11.1"
 
 # The Rails adapter for Inertia.js [https://inertia-rails.dev]
-gem "inertia_rails", "~> 3.21.2"
+gem "inertia_rails", "~> 3.22.0"
 
 # An authentication system generator for Rails applications
 # we leave gem here to watch for security updates
